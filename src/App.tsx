@@ -3,15 +3,33 @@ import { Sidebar } from './components/Sidebar';
 import { NoteList } from './components/NoteList';
 import { NoteEditor } from './components/NoteEditor';
 import { CommandPalette } from './components/CommandPalette';
-import { HeadsUpPanel } from './components/HeadsUpPanel';
 import { supabase } from './lib/supabase';
 import { AnimatePresence } from 'framer-motion';
+import { Home, X, Search } from 'lucide-react';
 
 function App() {
   const [notes, setNotes] = useState<any[]>([]);
-  const [activeNote, setActiveNote] = useState<any>(null);
+  const [openNotes, setOpenNotes] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('home'); // 'home' or uuid string
+  const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return 'dark'; // Default to premium dark mode
+  });
+
+  // Apply theme to document element
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -33,9 +51,13 @@ function App() {
     
     if (data) {
       setNotes(data);
-      if (!activeNote && data.length > 0) {
-        setActiveNote(data[0]);
-      }
+      // Sync openNotes with fresh db contents
+      setOpenNotes(prev => 
+        prev.map(openNote => {
+          const fresh = data.find(d => d.id === openNote.id);
+          return fresh ? fresh : openNote;
+        })
+      );
     }
     setLoading(false);
   };
@@ -43,6 +65,13 @@ function App() {
   useEffect(() => {
     fetchNotes();
   }, []);
+
+  const handleSelectNote = (note: any) => {
+    if (!openNotes.some(n => n.id === note.id)) {
+      setOpenNotes([...openNotes, note]);
+    }
+    setActiveTab(note.id);
+  };
 
   const handleNewNote = async () => {
     const { data } = await supabase
@@ -53,15 +82,66 @@ function App() {
     
     if (data) {
       setNotes([data, ...notes]);
-      setActiveNote(data);
+      setOpenNotes([...openNotes, data]);
+      setActiveTab(data.id);
     }
   };
 
-  const handleDeleteNote = async (id: number) => {
-    await supabase.from('notes').delete().eq('id', id);
-    setActiveNote(null);
-    fetchNotes();
+  const handleDeleteNote = async (id: string) => {
+    try {
+      const { error } = await supabase.from('notes').delete().eq('id', id);
+      if (error) {
+        console.error("Supabase delete failed:", error);
+        alert(`Failed to delete note: ${error.message} (Code: ${error.code})`);
+        return;
+      }
+      
+      const nextOpenNotes = openNotes.filter(n => n.id !== id);
+      setOpenNotes(nextOpenNotes);
+      if (activeTab === id) {
+        if (nextOpenNotes.length > 0) {
+          setActiveTab(nextOpenNotes[nextOpenNotes.length - 1].id);
+        } else {
+          setActiveTab('home');
+        }
+      }
+      fetchNotes();
+    } catch (err: any) {
+      console.error("Exception in note delete:", err);
+      alert(`Unexpected error while deleting: ${err.message || err}`);
+    }
   };
+
+  const handleCloseTab = (id: string) => {
+    const nextOpenNotes = openNotes.filter(n => n.id !== id);
+    setOpenNotes(nextOpenNotes);
+    if (activeTab === id) {
+      if (nextOpenNotes.length > 0) {
+        setActiveTab(nextOpenNotes[nextOpenNotes.length - 1].id);
+      } else {
+        setActiveTab('home');
+      }
+    }
+  };
+
+  const currentActiveNote = activeTab === 'home' 
+    ? null 
+    : (openNotes.find(n => n.id === activeTab) || notes.find(n => n.id === activeTab));
+
+  // Filter notes based on activeTagFilter AND searchQuery
+  const filteredNotes = notes.filter(note => {
+    if (activeTagFilter) {
+      const hasTag = note.note_tags?.some((nt: any) => nt.tags?.name === activeTagFilter);
+      if (!hasTag) return false;
+    }
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const titleMatch = note.title?.toLowerCase().includes(query);
+      const contentMatch = note.content?.toLowerCase().includes(query);
+      if (!titleMatch && !contentMatch) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="app-container">
@@ -69,39 +149,103 @@ function App() {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         notes={notes}
-        onSelectNote={setActiveNote}
+        onSelectNote={handleSelectNote}
       />
-      <Sidebar onGoHome={() => setActiveNote(null)} />
+      <Sidebar 
+        notes={notes}
+        activeNote={currentActiveNote}
+        onSelectNote={handleSelectNote}
+        onNewNote={handleNewNote}
+        onGoHome={() => setActiveTab('home')}
+        onSearchClick={() => setIsCommandPaletteOpen(true)}
+        activeTagFilter={activeTagFilter}
+        onSelectTagFilter={setActiveTagFilter}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
       
       <div className="center-pane">
-        {loading && notes.length === 0 ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <p className="body-md">Loading...</p>
-          </div>
-        ) : (
-          <AnimatePresence mode="wait">
-            {!activeNote ? (
-              <NoteList 
-                key="list"
-                notes={notes} 
-                onSelectNote={setActiveNote} 
-                onNewNote={handleNewNote} 
-              />
-            ) : (
-              <NoteEditor 
-                key="editor"
-                note={activeNote} 
-                onNoteUpdated={fetchNotes} 
-                onDeleteNote={handleDeleteNote}
-              />
+        {/* Top Search Bar */}
+        <div className="top-search-bar-container">
+          <div className="top-search-bar">
+            <Search size={15} className="top-search-icon" />
+            <input 
+              type="text" 
+              placeholder="Search or ask your Mem"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (activeTab !== 'home') {
+                  setActiveTab('home');
+                }
+              }}
+              className="top-search-input"
+            />
+            {searchQuery && (
+              <button className="top-search-clear-btn" onClick={() => setSearchQuery('')} title="Clear search">
+                <X size={13} />
+              </button>
             )}
-          </AnimatePresence>
-        )}
-      </div>
+          </div>
+        </div>
 
-      <div className="sidebar-right">
-        <h3 className="title" style={{ fontSize: '15px', marginBottom: '16px' }}>Heads Up</h3>
-        <HeadsUpPanel notes={notes} activeNote={activeNote} />
+        {/* Navigation Tabs Bar */}
+        <div className="editor-tabs-bar">
+          <button 
+            className={`editor-tab ${activeTab === 'home' ? 'active' : ''}`}
+            onClick={() => setActiveTab('home')}
+          >
+            <Home size={13} style={{ marginRight: '6px' }} />
+            <span>Home</span>
+          </button>
+          
+          {openNotes.map(note => (
+            <div 
+              key={note.id} 
+              className={`editor-tab ${activeTab === note.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(note.id)}
+            >
+              <span className="tab-title">{note.title || 'Untitled Note'}</span>
+              <button 
+                className="tab-close-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseTab(note.id);
+                }}
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="pane-content">
+          {loading && notes.length === 0 ? (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <p className="body-md">Loading...</p>
+            </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              {activeTab === 'home' ? (
+                <NoteList 
+                  key="list"
+                  notes={filteredNotes} 
+                  onSelectNote={handleSelectNote} 
+                  onNewNote={handleNewNote} 
+                  activeTagFilter={activeTagFilter}
+                  onClearTagFilter={() => setActiveTagFilter(null)}
+                />
+              ) : (
+                <NoteEditor 
+                  key={currentActiveNote?.id}
+                  note={currentActiveNote} 
+                  onNoteUpdated={fetchNotes} 
+                  onDeleteNote={handleDeleteNote}
+                />
+              )}
+            </AnimatePresence>
+          )}
+        </div>
       </div>
     </div>
   );

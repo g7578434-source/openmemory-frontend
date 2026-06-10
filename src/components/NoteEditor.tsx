@@ -15,6 +15,7 @@ const getBadgeColor = (tagName: string) => {
 export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
   const [title, setTitle] = useState(note?.title || '');
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Initialize Tiptap Editor
   const editor = useEditor({
@@ -32,6 +33,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
 
   useEffect(() => {
     setTitle(note?.title || '');
+    setConfirmDelete(false);
     if (editor && note?.content !== editor.getHTML()) {
       editor.commands.setContent(note?.content || '');
     }
@@ -62,96 +64,123 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
 
   return (
     <motion.div 
-      initial={{ x: '100%', opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: '100%', opacity: 0 }}
-      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      style={{ padding: '40px 10%', maxWidth: '900px', margin: '0 auto', width: '100%', height: '100%', backgroundColor: 'var(--surface)', position: 'absolute', top: 0, left: 0, overflowY: 'auto' }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={{ duration: 0.15 }}
+      className="note-editor-container"
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginLeft: 'auto' }}>
-          <div className="eyebrow" style={{ color: 'var(--ink-faint)' }}>
-            {saving ? 'Saving...' : 'All changes saved'}
+      <div className="note-editor-content-wrapper">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginLeft: 'auto' }}>
+            <div className="eyebrow" style={{ color: 'var(--ink-faint)' }}>
+              {saving ? 'Saving...' : 'All changes saved'}
+            </div>
+            {confirmDelete ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 500 }}>Confirm delete?</span>
+                <button 
+                  onClick={() => {
+                    console.log("Delete confirmed. ID:", note.id);
+                    onDeleteNote(note.id);
+                    setConfirmDelete(false);
+                  }}
+                  className="delete-note-btn"
+                  style={{ color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '4px 8px', fontSize: '12px', borderRadius: '4px' }}
+                >
+                  Yes, delete
+                </button>
+                <button 
+                  onClick={() => setConfirmDelete(false)}
+                  style={{ fontSize: '12px', color: 'var(--ink-muted)', cursor: 'pointer', padding: '4px 8px' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => {
+                  console.log("Delete clicked. Current note object:", note);
+                  if (!note || !note.id) {
+                    alert("Error: Note ID is missing. Cannot delete.");
+                    return;
+                  }
+                  setConfirmDelete(true);
+                }}
+                className="delete-note-btn"
+                title="Delete Note"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
           </div>
-          <button 
-            onClick={() => {
-              if (window.confirm("Are you sure you want to delete this note?")) {
-                onDeleteNote(note.id);
-              }
-            }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', display: 'flex', alignItems: 'center' }}
-            title="Delete Note"
-          >
-            <Trash2 size={16} />
-          </button>
         </div>
+
+        <input 
+          type="text" 
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={handleSaveTitle}
+          placeholder="Untitled Note"
+          style={{
+            width: '100%',
+            fontSize: '3em',
+            fontWeight: 700,
+            border: 'none',
+            outline: 'none',
+            backgroundColor: 'transparent',
+            marginBottom: 'var(--spacing-lg)',
+            color: 'var(--ink)',
+            lineHeight: 1.1
+          }}
+        />
+        
+        {/* Tag Display */}
+        {note.note_tags && note.note_tags.length > 0 && (
+          <div style={{ marginBottom: 'var(--spacing-md)' }}>
+            {note.note_tags.map((nt: any, idx: number) => {
+              if (!nt.tags) return null;
+              return (
+                <span key={idx} className={`badge-pill ${getBadgeColor(nt.tags.name)}`}>
+                  #{nt.tags.name}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {editor && (
+          <BubbleMenu editor={editor} className="bubble-menu-container">
+            <button
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              className={`bubble-menu-btn ${editor.isActive('bold') ? 'active' : ''}`}
+            >
+              <Bold size={16} />
+            </button>
+            <button
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              className={`bubble-menu-btn ${editor.isActive('italic') ? 'active' : ''}`}
+            >
+              <Italic size={16} />
+            </button>
+            <button
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              className={`bubble-menu-btn ${editor.isActive('bulletList') ? 'active' : ''}`}
+            >
+              <List size={16} />
+            </button>
+            <button
+              onClick={() => alert("AI Cleanup triggered (Placeholder)")}
+              className="bubble-menu-btn"
+              style={{ color: 'var(--sticker-purple-text)' }}
+            >
+              <Sparkles size={16} style={{ marginRight: '4px' }} /> Clean Up
+            </button>
+          </BubbleMenu>
+        )}
+
+        <EditorContent editor={editor} />
       </div>
-
-      <input 
-        type="text" 
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onBlur={handleSaveTitle}
-        placeholder="Untitled Note"
-        style={{
-          width: '100%',
-          fontSize: '3em',
-          fontWeight: 700,
-          border: 'none',
-          outline: 'none',
-          backgroundColor: 'transparent',
-          marginBottom: 'var(--spacing-lg)',
-          color: 'var(--ink)',
-          lineHeight: 1.1
-        }}
-      />
-      
-      {/* Tag Display */}
-      {note.note_tags && note.note_tags.length > 0 && (
-        <div style={{ marginBottom: 'var(--spacing-md)' }}>
-          {note.note_tags.map((nt: any, idx: number) => {
-            if (!nt.tags) return null;
-            return (
-              <span key={idx} className={`badge-pill ${getBadgeColor(nt.tags.name)}`}>
-                #{nt.tags.name}
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      {editor && (
-        <BubbleMenu editor={editor} className="bubble-menu-container">
-          <button
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            className={`bubble-menu-btn ${editor.isActive('bold') ? 'active' : ''}`}
-          >
-            <Bold size={16} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`bubble-menu-btn ${editor.isActive('italic') ? 'active' : ''}`}
-          >
-            <Italic size={16} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={`bubble-menu-btn ${editor.isActive('bulletList') ? 'active' : ''}`}
-          >
-            <List size={16} />
-          </button>
-          <button
-            onClick={() => alert("AI Cleanup triggered (Placeholder)")}
-            className="bubble-menu-btn"
-            style={{ color: 'var(--sticker-purple-text)' }}
-          >
-            <Sparkles size={16} style={{ marginRight: '4px' }} /> Clean Up
-          </button>
-        </BubbleMenu>
-      )}
-
-      <EditorContent editor={editor} />
-
     </motion.div>
   );
 }
