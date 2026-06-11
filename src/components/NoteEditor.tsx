@@ -15,6 +15,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { Bold, Italic, List, Sparkles, Trash2 } from 'lucide-react';
+import { ScoringForm } from './ScoringForm';
 
 const getBadgeColor = (tagName: string) => {
   const colors = ['badge-sky', 'badge-purple', 'badge-pink', 'badge-teal', 'badge-orange'];
@@ -25,6 +26,62 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
   const [title, setTitle] = useState(note?.title || '');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(note?.updated_at ? new Date(note.updated_at) : null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastSavedText, setLastSavedText] = useState('just now');
+  const [pulse, setPulse] = useState(false);
+
+  const handleSaveScore = async (scores: {
+    traffic: number;
+    cpc: number;
+    repeat: number;
+    share: number;
+    build: number;
+  }) => {
+    if (!note?.id) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const total = scores.traffic + scores.cpc + scores.repeat + scores.share + scores.build;
+      const verdict = total >= 35 ? 'Pass ✅' : 'Fail ❌';
+      const scoreString = `<p><strong>Score:</strong> Traffic=${scores.traffic}, CPC=${scores.cpc}, Repeat=${scores.repeat}, Share=${scores.share}, Build=${scores.build}, Total=${total} (${verdict})</p>`;
+
+      const currentHTML = editor ? editor.getHTML() : (note.content || '');
+      const scoreRegex = /<p[^>]*>(?:<strong[^>]*>)?\s*Score:\s*(?:<\/strong>)?\s*Traffic=[\s\S]*?<\/p>/i;
+
+      let updatedContent = '';
+      if (scoreRegex.test(currentHTML)) {
+        updatedContent = currentHTML.replace(scoreRegex, scoreString);
+      } else {
+        updatedContent = scoreString + currentHTML;
+      }
+
+      // 1. Update Supabase
+      const { error } = await supabase
+        .from('notes')
+        .update({ content: updatedContent })
+        .eq('id', note.id);
+      if (error) throw error;
+
+      setLastSaved(new Date());
+      setPulse(true);
+      setTimeout(() => setPulse(false), 1000);
+
+      // 2. Update Tiptap Editor
+      if (editor) {
+        editor.commands.setContent(updatedContent);
+      }
+
+      // 3. Notify parent to fetch notes
+      if (onNoteUpdated) {
+        await onNoteUpdated();
+      }
+    } catch (err: any) {
+      setSaveError(err.message || 'Error saving');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Initialize Tiptap Editor
   const editor = useEditor({
@@ -62,29 +119,81 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
     if (editor && note?.content !== editor.getHTML()) {
       editor.commands.setContent(note?.content || '');
     }
+    setLastSaved(note?.updated_at ? new Date(note.updated_at) : null);
+    setSaveError(null);
   }, [note, editor]);
+
+  useEffect(() => {
+    if (!lastSaved) {
+      setLastSavedText('');
+      return;
+    }
+
+    const updateText = () => {
+      const diffMs = new Date().getTime() - lastSaved.getTime();
+      const diffSecs = Math.max(0, Math.floor(diffMs / 1000));
+      const diffMins = Math.floor(diffSecs / 60);
+      const diffHours = Math.floor(diffMins / 60);
+
+      if (diffSecs < 10) {
+        setLastSavedText('just now');
+      } else if (diffSecs < 60) {
+        setLastSavedText(`${diffSecs} seconds ago`);
+      } else if (diffMins < 60) {
+        setLastSavedText(`${diffMins} min${diffMins > 1 ? 's' : ''} ago`);
+      } else if (diffHours < 24) {
+        setLastSavedText(`${diffHours} hour${diffHours > 1 ? 's' : ''} ago`);
+      } else {
+        setLastSavedText(lastSaved.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      }
+    };
+
+    updateText();
+    const interval = setInterval(updateText, 10000);
+    return () => clearInterval(interval);
+  }, [lastSaved]);
 
   // Debounced save for content
   const handleSaveContent = async (htmlContent: string) => {
     if (!note?.id) return;
     setSaving(true);
-    await supabase
-      .from('notes')
-      .update({ content: htmlContent })
-      .eq('id', note.id);
-    setSaving(false);
+    setSaveError(null);
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ content: htmlContent })
+        .eq('id', note.id);
+      if (error) throw error;
+      setLastSaved(new Date());
+      setPulse(true);
+      setTimeout(() => setPulse(false), 1000);
+    } catch (err: any) {
+      setSaveError(err.message || 'Error saving');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Immediate save for title
   const handleSaveTitle = async () => {
     if (!note?.id) return;
     setSaving(true);
-    await supabase
-      .from('notes')
-      .update({ title })
-      .eq('id', note.id);
-    setSaving(false);
-    if (onNoteUpdated) onNoteUpdated();
+    setSaveError(null);
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ title })
+        .eq('id', note.id);
+      if (error) throw error;
+      setLastSaved(new Date());
+      setPulse(true);
+      setTimeout(() => setPulse(false), 1000);
+      if (onNoteUpdated) onNoteUpdated();
+    } catch (err: any) {
+      setSaveError(err.message || 'Error saving');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -98,9 +207,6 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
       <div className="note-editor-content-wrapper">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginLeft: 'auto' }}>
-            <div className="eyebrow" style={{ color: 'var(--ink-faint)' }} aria-live="polite">
-              {saving ? 'Saving…' : 'All changes saved'}
-            </div>
             {confirmDelete ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 500 }}>Confirm delete?</span>
@@ -165,6 +271,15 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
           </div>
         )}
 
+        {/* Scoring Form */}
+        {note?.status === 'raw-idea' && (
+          <ScoringForm
+            noteId={note.id}
+            noteContent={note.content || ''}
+            onSaveScore={handleSaveScore}
+          />
+        )}
+
         {editor && (
           <BubbleMenu editor={editor} className="bubble-menu-container">
             <button
@@ -200,6 +315,22 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
         )}
 
         <EditorContent editor={editor} />
+
+        <div className="editor-bottom-bar">
+          <div className={`save-indicator ${pulse ? 'pulse' : ''} ${saving ? 'saving' : ''} ${saveError ? 'error' : ''}`}>
+            {saving ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span className="spinner-micro" /> Saving…
+              </span>
+            ) : saveError ? (
+              <span className="save-error-text">Save failed — check connection</span>
+            ) : lastSaved ? (
+              <span>Saved {lastSavedText}</span>
+            ) : (
+              <span>All changes saved</span>
+            )}
+          </div>
+        </div>
       </div>
     </motion.div>
   );

@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { NoteList } from './components/NoteList';
 import { NoteEditor } from './components/NoteEditor';
+import { PipelineDashboard } from './components/PipelineDashboard';
+import { CapsuleStatusBar } from './components/CapsuleStatusBar';
 import { CommandPalette } from './components/CommandPalette';
 import { HeadsUpPanel } from './components/HeadsUpPanel';
 import { supabase } from './lib/supabase';
 import { AnimatePresence } from 'framer-motion';
-import { Home, X, Search } from 'lucide-react';
+import { Home, X, Search, LayoutGrid } from 'lucide-react';
 
 function App() {
   const [notes, setNotes] = useState<any[]>([]);
@@ -18,6 +20,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [capsule, setCapsule] = useState<any | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved;
@@ -65,8 +68,91 @@ function App() {
     setLoading(false);
   };
 
+  const fetchCapsule = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('context_capsules')
+        .select('*')
+        .eq('project_name', 'micro-saas-research')
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        // Auto-initialize a default capsule if none exists
+        const defaultCapsule = {
+          session_number: 8,
+          validated_count: 0,
+          raw_ideas_count: 3,
+          pipeline: [
+            {
+              rank: 1,
+              tool_name: "SEO Blog Writer AI",
+              score: 39,
+              niche: "B2B",
+              status: "raw-idea",
+              scores: { traffic: 8, cpc: 8, repeat: 7, share: 8, build: 8 }
+            },
+            {
+              rank: 2,
+              tool_name: "Legal Contract Analyzer",
+              score: 36,
+              niche: "Legal",
+              status: "raw-idea",
+              scores: { traffic: 7, cpc: 8, repeat: 6, share: 7, build: 8 }
+            },
+            {
+              rank: 3,
+              tool_name: "SaaS Billing Auditor",
+              score: 33,
+              niche: "Finance",
+              status: "raw-idea",
+              scores: { traffic: 6, cpc: 7, repeat: 6, share: 6, build: 8 }
+            }
+          ],
+          next_actions: [
+            "Test landing page for Legal Contract Analyzer",
+            "Source B2B list for SaaS Billing Auditor"
+          ]
+        };
+
+        const { error: insertErr } = await supabase
+          .from('context_capsules')
+          .insert({
+            project_name: 'micro-saas-research',
+            state_data: defaultCapsule
+          });
+
+        if (insertErr) throw insertErr;
+        setCapsule(defaultCapsule);
+      } else {
+        setCapsule(data.state_data);
+      }
+    } catch (err) {
+      console.error("Error loading capsule:", err);
+    }
+  };
+
+  const saveCapsule = async (newState: any) => {
+    try {
+      const { error } = await supabase
+        .from('context_capsules')
+        .upsert(
+          { project_name: 'micro-saas-research', state_data: newState },
+          { onConflict: 'project_name' }
+        );
+
+      if (error) throw error;
+      setCapsule(newState);
+    } catch (err: any) {
+      console.error("Error saving capsule:", err);
+      alert(`Error saving capsule: ${err.message}`);
+    }
+  };
+
   useEffect(() => {
     fetchNotes();
+    fetchCapsule();
   }, []);
 
   const handleSelectNote = (note: any) => {
@@ -134,7 +220,13 @@ function App() {
   // Filter notes based on activeTagFilter AND searchQuery
   const filteredNotes = notes.filter(note => {
     if (activeTagFilter) {
-      const hasTag = note.note_tags?.some((nt: any) => nt.tags?.name === activeTagFilter);
+      const hasTag = note.note_tags?.some((nt: any) => {
+        const name = nt.tags?.name;
+        if (activeTagFilter === 'system') {
+          return name === 'system' || name === 'protocol';
+        }
+        return name === activeTagFilter;
+      });
       if (!hasTag) return false;
     }
     if (searchQuery) {
@@ -168,6 +260,9 @@ function App() {
       />
       
       <div className="center-pane">
+        {/* Context Capsule Status Bar */}
+        <CapsuleStatusBar capsule={capsule} />
+
         {/* Top Search Bar */}
         <div className="top-search-bar-container">
           <div className="top-search-bar">
@@ -200,6 +295,14 @@ function App() {
           >
             <Home aria-hidden="true" size={13} style={{ marginRight: '6px' }} />
             <span>Home</span>
+          </button>
+
+          <button 
+            className={`editor-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pipeline')}
+          >
+            <LayoutGrid aria-hidden="true" size={13} style={{ marginRight: '6px' }} />
+            <span>Pipeline</span>
           </button>
           
           {openNotes.map(note => (
@@ -239,6 +342,12 @@ function App() {
                   activeTagFilter={activeTagFilter}
                   onClearTagFilter={() => setActiveTagFilter(null)}
                 />
+              ) : activeTab === 'pipeline' ? (
+                <PipelineDashboard 
+                  key="pipeline" 
+                  capsule={capsule}
+                  onSaveCapsule={saveCapsule}
+                />
               ) : (
                 <NoteEditor 
                   key={currentActiveNote?.id}
@@ -252,7 +361,7 @@ function App() {
         </div>
       </div>
 
-      {activeTab !== 'home' && (
+      {activeTab !== 'home' && activeTab !== 'pipeline' && currentActiveNote && (
         <div className="sidebar-right">
           <div className="sidebar-right-header">
             <h3>Related Notes</h3>

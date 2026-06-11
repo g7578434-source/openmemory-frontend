@@ -8,20 +8,22 @@ const getBadgeColor = (tagName: string) => {
   return colors[tagName.length % colors.length];
 };
 
-const formatTimestamp = (dateString: string) => {
+const formatRelativeTime = (dateString: string) => {
   if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
-  
-  if (date.toDateString() === now.toDateString()) {
-    let hours = date.getHours();
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'pm' : 'am';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    return `${hours}:${minutes}${ampm}`;
-  }
-  
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.max(0, Math.floor(diffMs / 1000));
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSecs < 60) return 'just now';
+  if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 30) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
@@ -102,32 +104,41 @@ export function NoteList({ notes, onSelectNote, onNewNote, activeTagFilter, onCl
           </div>
         ) : (
           notes.map((note: any) => (
-            <div key={note.id} className="note-list-item" onClick={() => onSelectNote(note)}>
+            <div 
+              key={note.id} 
+              className={`note-list-item status-${note.status || 'note'}`} 
+              onClick={() => onSelectNote(note)}
+            >
               <div className="note-item-left">
                 <span className="note-status-dot" />
               </div>
               <div className="note-item-content">
                 <div className="note-item-header">
                   <span className="note-item-title">{note.title || 'Untitled Note'}</span>
-                  {note.note_tags && note.note_tags.length > 0 && (
-                    <span className="note-item-tags">
-                      {note.note_tags.map((nt: any, idx: number) => {
-                        if (!nt.tags) return null;
-                        return (
-                          <span key={idx} className={`badge-pill ${getBadgeColor(nt.tags.name)}`}>
-                            #{nt.tags.name}
-                          </span>
-                        );
-                      })}
-                    </span>
-                  )}
                 </div>
+                {note.note_tags && note.note_tags.length > 0 && (
+                  <div className="note-item-tags" style={{ marginTop: '2px', marginBottom: '4px' }}>
+                    {note.note_tags.slice(0, 2).map((nt: any, idx: number) => {
+                      if (!nt.tags) return null;
+                      return (
+                        <span key={idx} className={`badge-pill ${getBadgeColor(nt.tags.name)}`}>
+                          #{nt.tags.name}
+                        </span>
+                      );
+                    })}
+                    {note.note_tags.length > 2 && (
+                      <span style={{ fontSize: '11px', color: 'var(--ink-faint)', marginLeft: '2px' }}>
+                        +{note.note_tags.length - 2} more
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className="note-item-preview">
                   {stripHtml(note.content) || 'Empty note…'}
                 </div>
               </div>
               <div className="note-item-time-container">
-                <span className="note-item-time">{formatTimestamp(note.updated_at)}</span>
+                <span className="note-item-time">{formatRelativeTime(note.updated_at)}</span>
               </div>
             </div>
           ))

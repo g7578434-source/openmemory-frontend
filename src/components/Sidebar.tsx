@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Home, Search, Settings, Pin, FileText, Folder, Plus, Sun, Moon } from 'lucide-react';
+import { Search, Settings, Folder, Plus, Sun, Moon, Files } from 'lucide-react';
 
 interface SidebarProps {
   notes: any[];
@@ -17,7 +17,6 @@ interface SidebarProps {
 export function Sidebar({ 
   notes, 
   activeNote, 
-  onSelectNote, 
   onNewNote, 
   onGoHome, 
   onSearchClick,
@@ -26,17 +25,39 @@ export function Sidebar({
   theme,
   onToggleTheme
 }: SidebarProps) {
-  // Extract top 5 notes for the recent list
-  const recentNotes = notes.slice(0, 5);
 
-  // Extract unique tags/collections from notes
-  const collections = Array.from(
-    new Set(
-      notes
-        .flatMap((note) => note.note_tags?.map((nt: any) => nt.tags?.name))
-        .filter(Boolean)
-    )
-  ).slice(0, 5);
+  // Helper to count notes belonging to a specific tag
+  const getCountForTag = (tag: string) => {
+    return notes.filter(note => 
+      note.note_tags?.some((nt: any) => {
+        const name = nt.tags?.name;
+        if (tag === 'system') {
+          return name === 'system' || name === 'protocol';
+        }
+        return name === tag;
+      })
+    ).length;
+  };
+
+  const renderFolder = (label: string, tag: string) => {
+    const count = getCountForTag(tag);
+    const isActive = activeTagFilter === tag;
+    
+    return (
+      <button
+        key={tag}
+        className={`sidebar-list-item ${isActive ? 'active' : ''}`}
+        onClick={() => {
+          onSelectTagFilter(tag);
+          onGoHome();
+        }}
+      >
+        <Folder aria-hidden="true" size={13} className="item-icon" />
+        <span className="item-text">{label}</span>
+        <span className="folder-count">{count}</span>
+      </button>
+    );
+  };
 
   return (
     <div className="sidebar-left">
@@ -72,98 +93,47 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* Navigation Links */}
-      <div className="sidebar-nav-section">
-        <button 
-          className={`nav-item ${!activeNote && !activeTagFilter ? 'active' : ''}`} 
-          onClick={() => {
-            onSelectTagFilter(null);
-            onGoHome();
-          }}
-        >
-          <Home aria-hidden="true" size={15} />
-          <span>Home</span>
-        </button>
-      </div>
+      {/* Folder Navigation */}
+      <div className="sidebar-folders-container" style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
+        {/* Group 1: Research Flow */}
+        <div className="sidebar-folder-group">
+          {renderFolder('Raw Ideas', 'raw-idea')}
+          {renderFolder('Awaiting Test', 'awaiting-test')}
+          {renderFolder('Validated', 'validated')}
+          {renderFolder('Killed Ideas', 'killed')}
+        </div>
 
-      {/* Pinned Section */}
-      <div className="sidebar-group">
-        <div className="sidebar-group-header">
-          <Pin aria-hidden="true" size={12} />
-          <span>Pinned</span>
-        </div>
-        <div className="sidebar-group-empty">
-          Notes and collections appear here
-        </div>
-      </div>
+        <hr className="sidebar-divider" />
 
-      {/* Recent Notes Section */}
-      <div className="sidebar-group">
-        <div className="sidebar-group-header">
-          <FileText aria-hidden="true" size={12} />
-          <span>Notes</span>
+        {/* Group 2: Log Notes */}
+        <div className="sidebar-folder-group">
+          {renderFolder('Research Logs', 'research-log')}
+          {renderFolder('Session Logs', 'session-log')}
         </div>
-        <div className="sidebar-group-list">
-          {recentNotes.length === 0 ? (
-            <div className="sidebar-group-empty">No recent notes</div>
-          ) : (
-            recentNotes.map((note) => (
-              <button
-                key={note.id}
-                className={`sidebar-list-item ${activeNote?.id === note.id ? 'active' : ''}`}
-                onClick={() => {
-                  onSelectTagFilter(null);
-                  onSelectNote(note);
-                }}
-              >
-                <FileText aria-hidden="true" size={13} className="item-icon" />
-                <span className="item-text">{note.title || 'Untitled Note'}</span>
-              </button>
-            ))
-          )}
-          {notes.length > 5 && (
-            <button 
-              className="sidebar-see-all-btn" 
-              onClick={() => {
-                onSelectTagFilter(null);
-                onGoHome();
-              }}
-            >
-              See all
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Collections Section */}
-      <div className="sidebar-group">
-        <div className="sidebar-group-header">
-          <Folder aria-hidden="true" size={12} />
-          <span>Collections</span>
+        <hr className="sidebar-divider" />
+
+        {/* Group 3: Setup & Systems */}
+        <div className="sidebar-folder-group">
+          {renderFolder('Templates', 'template')}
+          {renderFolder('System', 'system')}
         </div>
-        <div className="sidebar-group-list">
-          {collections.length === 0 ? (
-            <div className="sidebar-group-empty">No collections yet</div>
-          ) : (
-            collections.map((tag: any) => (
-              <button
-                key={tag}
-                className={`sidebar-list-item ${activeTagFilter === tag ? 'active' : ''}`}
-                onClick={() => {
-                  onSelectTagFilter(tag);
-                  onGoHome();
-                }}
-              >
-                <Folder aria-hidden="true" size={13} className="item-icon" />
-                <span className="item-text">#{tag}</span>
-              </button>
-            ))
-          )}
-          {collections.length > 0 && (
-            <button className="sidebar-see-all-btn" onClick={() => {}}>
-              See all
-            </button>
-          )}
+
+        <hr className="sidebar-divider" />
+
+        {/* Group 4: All Notes Fallback */}
+        <div className="sidebar-folder-group">
+          <button 
+            className={`sidebar-list-item ${!activeNote && !activeTagFilter ? 'active' : ''}`}
+            onClick={() => {
+              onSelectTagFilter(null);
+              onGoHome();
+            }}
+          >
+            <Files aria-hidden="true" size={13} className="item-icon" />
+            <span className="item-text">All Notes</span>
+            <span className="folder-count">{notes.length}</span>
+          </button>
         </div>
       </div>
 
