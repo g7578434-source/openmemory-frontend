@@ -191,7 +191,7 @@ export function PipelineDashboard({
     }
   };
 
-  if (!capsule) {
+  if (!capsule || !capsule.pipeline) {
     return (
       <div className="pipeline-dashboard-empty">
         <p className="body-md">No pipeline found.</p>

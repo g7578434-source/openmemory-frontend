@@ -30,7 +30,7 @@ interface CapsuleState {
 export function CapsuleStatusBar({ capsule }: { capsule: CapsuleState | null }) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!capsule) return null;
+  if (!capsule || !capsule.pipeline) return null;
 
   const activeIdeas = capsule.pipeline.filter(p => p.status === 'raw-idea');
   
