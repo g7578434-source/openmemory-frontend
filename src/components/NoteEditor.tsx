@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
@@ -14,7 +14,7 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
-import { Bold, Italic, List, Sparkles, Trash2 } from 'lucide-react';
+import { Bold, Italic, List, Sparkles, Trash2, X } from 'lucide-react';
 import { ScoringForm } from './ScoringForm';
 
 const getBadgeColor = (tagName: string) => {
@@ -22,7 +22,7 @@ const getBadgeColor = (tagName: string) => {
   return colors[tagName.length % colors.length];
 };
 
-export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
+export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveCapsule }: any) {
   const [title, setTitle] = useState(note?.title || '');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -30,6 +30,180 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastSavedText, setLastSavedText] = useState('just now');
   const [pulse, setPulse] = useState(false);
+
+  // Keep & Kill states
+  const [showKeepModal, setShowKeepModal] = useState(false);
+  const [showKillModal, setShowKillModal] = useState(false);
+  const [deadline, setDeadline] = useState('');
+  const [killReason, setKillReason] = useState('');
+  const [competitorsText, setCompetitorsText] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const handleKeepConfirm = async () => {
+    if (!note?.id) return;
+    setActionLoading(true);
+    try {
+      let updatedContent = editor ? editor.getHTML() : (note.content || '');
+      if (deadline) {
+        const deadlineHTML = `<p><strong>Test Deadline:</strong> ${deadline}</p>`;
+        const deadlineRegex = /<p[^>]*>(?:<strong[^>]*>)?\s*Test Deadline:\s*(?:<\/strong>)?\s*[\s\S]*?<\/p>/i;
+        if (deadlineRegex.test(updatedContent)) {
+          updatedContent = updatedContent.replace(deadlineRegex, deadlineHTML);
+        } else {
+          updatedContent = deadlineHTML + updatedContent;
+        }
+      }
+
+      const { error: updateErr } = await supabase
+        .from('notes')
+        .update({
+          status: 'awaiting-test',
+          content: updatedContent
+        })
+        .eq('id', note.id);
+
+      if (updateErr) throw updateErr;
+
+      if (capsule && capsule.pipeline) {
+        const updatedPipeline = capsule.pipeline.map((p: any) => {
+          if (p.tool_name === note.title) {
+            return { ...p, status: 'awaiting-test' };
+          }
+          return p;
+        });
+        await onSaveCapsule({
+          ...capsule,
+          pipeline: updatedPipeline
+        });
+      }
+
+      if (editor) {
+        editor.commands.setContent(updatedContent);
+      }
+
+      setShowKeepModal(false);
+      if (onNoteUpdated) await onNoteUpdated();
+    } catch (err: any) {
+      alert(`Error keeping note: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleKillConfirm = async () => {
+    if (!note?.id) return;
+    setActionLoading(true);
+    try {
+      let niche = 'N/A';
+      let score = undefined;
+      let matchedItem = null;
+
+      if (capsule && capsule.pipeline) {
+        matchedItem = capsule.pipeline.find((p: any) => p.tool_name === note.title);
+        if (matchedItem) {
+          niche = matchedItem.niche || 'N/A';
+          score = matchedItem.score;
+        }
+      }
+
+      const sessionNum = capsule?.session_number || 1;
+      const title = `KILL: ${note.title}`;
+      const competitors = competitorsText
+        .split(',')
+        .map(c => c.trim())
+        .filter(Boolean);
+
+      const lines = [
+        `## Kill Registry Entry`,
+        ``,
+        `**Idea:** ${note.title}`,
+        `**Niche:** ${niche}`,
+        `**Session:** #${sessionNum}`,
+        `**Reason:** ${killReason}`,
+      ];
+      if (score !== undefined) {
+        lines.push(`**Score:** ${score}`);
+      }
+      if (competitors.length > 0) {
+        lines.push(``, `**Competitors Found:**`);
+        competitors.forEach(c => lines.push(`- ${c}`));
+      }
+      const killNoteContent = lines.join('\n');
+
+      const { data: killNote, error: killNoteErr } = await supabase
+        .from('notes')
+        .insert({
+          title,
+          content: killNoteContent,
+          status: 'killed'
+        })
+        .select()
+        .single();
+
+      if (killNoteErr) throw killNoteErr;
+
+      let { data: killedTag } = await supabase
+        .from('tags')
+        .select()
+        .eq('name', 'killed')
+        .maybeSingle();
+
+      if (!killedTag) {
+        const { data: newTag, error: newTagErr } = await supabase
+          .from('tags')
+          .insert({ name: 'killed' })
+          .select()
+          .single();
+        if (newTagErr) throw newTagErr;
+        killedTag = newTag;
+      }
+
+      await supabase
+        .from('note_tags')
+        .insert({
+          note_id: killNote.id,
+          tag_id: killedTag.id
+        });
+
+      const { error: curNoteErr } = await supabase
+        .from('notes')
+        .update({ status: 'killed' })
+        .eq('id', note.id);
+
+      if (curNoteErr) throw curNoteErr;
+
+      if (capsule && capsule.pipeline) {
+        const updatedPipeline = capsule.pipeline.map((p: any) => {
+          if (p.tool_name === note.title) {
+            return {
+              ...p,
+              status: 'killed',
+              kill_reason: killReason,
+              competitors: competitors
+            };
+          }
+          return p;
+        });
+
+        const validatedCount = updatedPipeline.filter((p: any) => p.status === 'validated').length;
+        const rawCount = updatedPipeline.filter((p: any) => p.status === 'raw-idea').length;
+
+        await onSaveCapsule({
+          ...capsule,
+          pipeline: updatedPipeline,
+          validated_count: validatedCount,
+          raw_ideas_count: rawCount
+        });
+      }
+
+      setShowKillModal(false);
+      if (onNoteUpdated) await onNoteUpdated();
+    } catch (err: any) {
+      alert(`Error killing note: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleSaveScore = async (scores: {
     traffic: number;
@@ -207,6 +381,24 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
       <div className="note-editor-content-wrapper">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginLeft: 'auto' }}>
+            {note?.status === 'raw-idea' && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => setShowKeepModal(true)}
+                  className="btn-action-promote"
+                  style={{ padding: '4px 10px', height: '28px', fontSize: '12.5px', borderRadius: 'var(--radius-sm)' }}
+                >
+                  Keep ✅
+                </button>
+                <button 
+                  onClick={() => setShowKillModal(true)}
+                  className="btn-action-kill"
+                  style={{ padding: '4px 10px', height: '28px', fontSize: '12.5px', borderRadius: 'var(--radius-sm)' }}
+                >
+                  Kill 🪦
+                </button>
+              </div>
+            )}
             {confirmDelete ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 500 }}>Confirm delete?</span>
@@ -332,6 +524,123 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
           </div>
         </div>
       </div>
+
+      {/* Keep Confirmation Modal */}
+      <AnimatePresence>
+        {showKeepModal && (
+          <div className="modal-backdrop">
+            <motion.div 
+              className="modal-content glass-panel"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+            >
+              <div className="modal-header">
+                <h3>Keep Idea: {note?.title || 'Untitled'}</h3>
+                <button onClick={() => setShowKeepModal(false)} className="btn-close-modal">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="modal-body">
+                <p className="body-sm text-muted">
+                  Promote this idea to "Awaiting Test" and optionally set a validation test deadline.
+                </p>
+                <div className="modal-form-group">
+                  <label className="modal-label" htmlFor="deadline-input">Test Deadline (Optional)</label>
+                  <input
+                    id="deadline-input"
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    className="scoring-input"
+                    style={{ textAlign: 'left', marginTop: '6px', backgroundColor: 'var(--canvas)', height: '38px', padding: '0 12px' }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  onClick={() => setShowKeepModal(false)} 
+                  className="btn-utility"
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleKeepConfirm} 
+                  className="btn-primary"
+                  disabled={actionLoading}
+                  style={{ backgroundColor: 'var(--primary)', color: 'var(--on-primary)', borderRadius: 'var(--radius-md)', padding: '6px 16px', fontSize: '13.5px' }}
+                >
+                  {actionLoading ? 'Saving...' : 'Confirm Keep ✅'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Kill Confirmation Modal */}
+      <AnimatePresence>
+        {showKillModal && (
+          <div className="modal-backdrop">
+            <motion.div 
+              className="modal-content glass-panel"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+            >
+              <div className="modal-header">
+                <h3>Kill Idea: {note?.title || 'Untitled'}</h3>
+                <button onClick={() => setShowKillModal(false)} className="btn-close-modal">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="modal-body">
+                <p className="body-sm text-muted">
+                  Document the kill registry entry. Below 35 score is auto-killed, or if 3+ free competitors exist.
+                </p>
+                <div className="modal-form-group">
+                  <label className="modal-label">Kill Reason</label>
+                  <textarea
+                    value={killReason}
+                    onChange={(e) => setKillReason(e.target.value)}
+                    placeholder="e.g. 3+ free tools exist / Market saturated / Score below 35"
+                    className="modal-textarea"
+                    rows={3}
+                  />
+                </div>
+                <div className="modal-form-group">
+                  <label className="modal-label">Competitors Found (Comma-separated)</label>
+                  <input
+                    type="text"
+                    value={competitorsText}
+                    onChange={(e) => setCompetitorsText(e.target.value)}
+                    placeholder="e.g. https://competitor1.com, competitor2"
+                    className="scoring-input"
+                    style={{ textAlign: 'left', marginTop: '6px', backgroundColor: 'var(--canvas)', height: '38px', padding: '0 12px' }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  onClick={() => setShowKillModal(false)} 
+                  className="btn-utility"
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleKillConfirm} 
+                  className="btn-danger"
+                  disabled={!killReason.trim() || actionLoading}
+                >
+                  {actionLoading ? 'Logging Kill...' : 'Confirm Kill ❌'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

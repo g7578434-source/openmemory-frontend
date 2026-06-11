@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Search, Settings, Folder, Plus, Sun, Moon, Files } from 'lucide-react';
+import { Search, Settings, Folder, Plus, Sun, Moon, Files, Play } from 'lucide-react';
 
 interface SidebarProps {
   notes: any[];
@@ -12,6 +12,7 @@ interface SidebarProps {
   onSelectTagFilter: (tag: string | null) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onStartSessionClick: () => void;
 }
 
 export function Sidebar({ 
@@ -23,7 +24,8 @@ export function Sidebar({
   activeTagFilter,
   onSelectTagFilter,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  onStartSessionClick
 }: SidebarProps) {
 
   // Helper to count notes belonging to a specific tag
@@ -76,11 +78,24 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* Primary Action: Create Note */}
-      <div className="sidebar-action-container">
+      {/* Primary Action: Create Note & Start Session */}
+      <div className="sidebar-action-container" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <button className="sidebar-create-btn" onClick={onNewNote}>
           <Plus aria-hidden="true" size={16} />
           <span>Create Note</span>
+        </button>
+        <button 
+          className="sidebar-create-btn" 
+          onClick={onStartSessionClick}
+          style={{ 
+            backgroundColor: 'var(--primary)', 
+            color: 'var(--on-primary)', 
+            borderColor: 'var(--primary)',
+            boxShadow: 'var(--shadow-sm)'
+          }}
+        >
+          <Play aria-hidden="true" size={13} fill="currentColor" />
+          <span>Start Session</span>
         </button>
       </div>
 

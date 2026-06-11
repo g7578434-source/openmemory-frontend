@@ -33,7 +33,7 @@ const stripHtml = (html: string) => {
   return doc.body.textContent || '';
 };
 
-export function NoteList({ notes, onSelectNote, onNewNote, activeTagFilter, onClearTagFilter }: any) {
+export function NoteList({ notes, onSelectNote, onNewNote, activeTagFilter, onClearTagFilter, searchQuery }: any) {
   const [activeTab, setActiveTab] = useState('all');
 
   return (
@@ -97,10 +97,23 @@ export function NoteList({ notes, onSelectNote, onNewNote, activeTagFilter, onCl
       <div className="note-items-list">
         {notes.length === 0 ? (
           <div className="notes-empty-state">
-            <p>No notes found. Create your first memory!</p>
-            <button className="btn-primary" onClick={onNewNote} style={{ marginTop: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-              <Plus size={16} /> New Note
-            </button>
+            {searchQuery ? (
+              <div>
+                <p style={{ fontWeight: 600, fontSize: '16px', color: 'var(--ink)', marginBottom: '4px' }}>
+                  No results for "{searchQuery}"
+                </p>
+                <p style={{ fontSize: '13.5px', color: 'var(--ink-muted)' }}>
+                  Try a shorter phrase or check your spelling.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p>No notes found. Create your first memory!</p>
+                <button className="btn-primary" onClick={onNewNote} style={{ marginTop: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Plus size={16} /> New Note
+                </button>
+              </>
+            )}
           </div>
         ) : (
           notes.map((note: any) => (

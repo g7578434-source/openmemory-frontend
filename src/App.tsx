@@ -8,6 +8,7 @@ import { PipelineDashboard } from './components/PipelineDashboard';
 import { CapsuleStatusBar } from './components/CapsuleStatusBar';
 import { CommandPalette } from './components/CommandPalette';
 import { HeadsUpPanel } from './components/HeadsUpPanel';
+import { SessionStartModal } from './components/SessionStartModal';
 import { supabase } from './lib/supabase';
 import { AnimatePresence } from 'framer-motion';
 import { Home, X, Search, LayoutGrid } from 'lucide-react';
@@ -20,6 +21,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
   const [capsule, setCapsule] = useState<any | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
@@ -246,6 +248,29 @@ function App() {
         notes={notes}
         onSelectNote={handleSelectNote}
       />
+      <SessionStartModal
+        isOpen={isSessionModalOpen}
+        onClose={() => setIsSessionModalOpen(false)}
+        capsule={capsule}
+        onSessionStarted={async (noteId) => {
+          await fetchNotes();
+          const { data } = await supabase
+            .from('notes')
+            .select('*, note_tags(tags(name))')
+            .eq('id', noteId)
+            .single();
+          if (data) {
+            setOpenNotes(prev => {
+              if (!prev.some(n => n.id === data.id)) {
+                return [...prev, data];
+              }
+              return prev;
+            });
+            setActiveTab(data.id);
+          }
+        }}
+        onSaveCapsule={saveCapsule}
+      />
       <Sidebar 
         notes={notes}
         activeNote={currentActiveNote}
@@ -257,6 +282,7 @@ function App() {
         onSelectTagFilter={setActiveTagFilter}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onStartSessionClick={() => setIsSessionModalOpen(true)}
       />
       
       <div className="center-pane">
@@ -269,7 +295,7 @@ function App() {
             <Search aria-hidden="true" size={15} className="top-search-icon" />
             <input 
               type="text" 
-              placeholder="Search"
+              placeholder="Search notes…"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -279,6 +305,9 @@ function App() {
               }}
               className="top-search-input"
             />
+            {!searchQuery && (
+              <span className="search-shortcut">⌘K</span>
+            )}
             {searchQuery && (
               <button className="top-search-clear-btn" onClick={() => setSearchQuery('')} title="Clear search" aria-label="Clear search">
                 <X aria-hidden="true" size={13} />
@@ -341,6 +370,7 @@ function App() {
                   onNewNote={handleNewNote} 
                   activeTagFilter={activeTagFilter}
                   onClearTagFilter={() => setActiveTagFilter(null)}
+                  searchQuery={searchQuery}
                 />
               ) : activeTab === 'pipeline' ? (
                 <PipelineDashboard 
@@ -354,6 +384,8 @@ function App() {
                   note={currentActiveNote} 
                   onNoteUpdated={fetchNotes} 
                   onDeleteNote={handleDeleteNote}
+                  capsule={capsule}
+                  onSaveCapsule={saveCapsule}
                 />
               )}
             </AnimatePresence>

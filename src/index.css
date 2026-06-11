@@ -51,23 +51,24 @@
 }
 
 [data-theme='dark'] {
-  /* Premium Dark Mode Colors (Minimalist Midnight Green) */
-  --canvas-soft: #060807;
-  --canvas: #0e1411;
-  --surface: #131b17;
-  --sidebar-bg: #0b0f0c;
-  --primary: #2dd4bf;
-  --primary-active: #14b8a6;
-  --primary-hover: rgba(45, 212, 191, 0.05);
-  --primary-selected: rgba(45, 212, 191, 0.1);
-  --secondary: #0f766e;
-  --on-primary: #080c0a;
-  --ink: #f0faf6;
-  --ink-secondary: #cde0d7;
-  --ink-muted: #8ba295;
-  --ink-faint: #4f6356;
-  --hairline: #1f2d25;
-  --link-underline: rgba(45, 212, 191, 0.25);
+  /* Premium Dark Mode Colors (Nordic Slate + Violet Dark) */
+  --canvas-soft: #141622;
+  --canvas: #1e2130;
+  --surface: #252838;
+  --surface-raised: #2d3147;
+  --sidebar-bg: #181a26;
+  --primary: #7c6af0;
+  --primary-active: #6b5be0;
+  --primary-hover: rgba(124, 106, 240, 0.08);
+  --primary-selected: rgba(124, 106, 240, 0.15);
+  --secondary: #6b5be0;
+  --on-primary: #ffffff;
+  --ink: #e8eaf0;
+  --ink-secondary: #c8cad5;
+  --ink-muted: #8b90a8;
+  --ink-faint: #595d75;
+  --hairline: rgba(255, 255, 255, 0.08);
+  --link-underline: rgba(124, 106, 240, 0.25);
 
   /* Sticker Palette - Dark Mode */
   --sticker-sky: rgba(14, 165, 233, 0.15);
@@ -1517,6 +1518,14 @@ input, textarea {
 .status-badge-awaiting {
   background-color: rgba(245, 158, 11, 0.12);
   color: #f59e0b;
+}
+
+.status-badge-live {
+  background-color: rgba(14, 165, 233, 0.12);
+  color: #0ea5e9;
+}
+[data-theme='dark'] .status-badge-live {
+  color: #38bdf8;
 }
 
 .status-badge-validated {
