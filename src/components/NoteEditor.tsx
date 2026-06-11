@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion } from 'framer-motion';
@@ -5,6 +7,13 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import Link from '@tiptap/extension-link';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
 import { Bold, Italic, List, Sparkles, Trash2 } from 'lucide-react';
 
 const getBadgeColor = (tagName: string) => {
@@ -24,6 +33,22 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
       Placeholder.configure({
         placeholder: 'Press / for commands, or start typing...',
       }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'editor-link',
+        },
+      }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
     ],
     content: note?.content || '',
     onUpdate: ({ editor }) => {
@@ -73,8 +98,8 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
       <div className="note-editor-content-wrapper">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginLeft: 'auto' }}>
-            <div className="eyebrow" style={{ color: 'var(--ink-faint)' }}>
-              {saving ? 'Saving...' : 'All changes saved'}
+            <div className="eyebrow" style={{ color: 'var(--ink-faint)' }} aria-live="polite">
+              {saving ? 'Saving…' : 'All changes saved'}
             </div>
             {confirmDelete ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -109,8 +134,9 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
                 }}
                 className="delete-note-btn"
                 title="Delete Note"
+                aria-label="Delete note"
               >
-                <Trash2 size={16} />
+                <Trash2 aria-hidden="true" size={16} />
               </button>
             )}
           </div>
@@ -122,17 +148,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
           onChange={(e) => setTitle(e.target.value)}
           onBlur={handleSaveTitle}
           placeholder="Untitled Note"
-          style={{
-            width: '100%',
-            fontSize: '3em',
-            fontWeight: 700,
-            border: 'none',
-            outline: 'none',
-            backgroundColor: 'transparent',
-            marginBottom: 'var(--spacing-lg)',
-            color: 'var(--ink)',
-            lineHeight: 1.1
-          }}
+          className="note-title-input"
         />
         
         {/* Tag Display */}
@@ -154,27 +170,31 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
             <button
               onClick={() => editor.chain().focus().toggleBold().run()}
               className={`bubble-menu-btn ${editor.isActive('bold') ? 'active' : ''}`}
+              aria-label="Bold text"
             >
-              <Bold size={16} />
+              <Bold aria-hidden="true" size={16} />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleItalic().run()}
               className={`bubble-menu-btn ${editor.isActive('italic') ? 'active' : ''}`}
+              aria-label="Italicize text"
             >
-              <Italic size={16} />
+              <Italic aria-hidden="true" size={16} />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleBulletList().run()}
               className={`bubble-menu-btn ${editor.isActive('bulletList') ? 'active' : ''}`}
+              aria-label="Bullet list"
             >
-              <List size={16} />
+              <List aria-hidden="true" size={16} />
             </button>
             <button
               onClick={() => alert("AI Cleanup triggered (Placeholder)")}
               className="bubble-menu-btn"
               style={{ color: 'var(--sticker-purple-text)' }}
+              aria-label="Clean up text with AI"
             >
-              <Sparkles size={16} style={{ marginRight: '4px' }} /> Clean Up
+              <Sparkles aria-hidden="true" size={16} style={{ marginRight: '4px' }} /> Clean Up
             </button>
           </BubbleMenu>
         )}

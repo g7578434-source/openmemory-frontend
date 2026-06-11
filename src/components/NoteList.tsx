@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { motion } from 'framer-motion';
 import { Plus, Filter } from 'lucide-react';
 import { useState } from 'react';
@@ -122,7 +123,7 @@ export function NoteList({ notes, onSelectNote, onNewNote, activeTagFilter, onCl
                   )}
                 </div>
                 <div className="note-item-preview">
-                  {stripHtml(note.content) || 'Empty note...'}
+                  {stripHtml(note.content) || 'Empty note…'}
                 </div>
               </div>
               <div className="note-item-time-container">

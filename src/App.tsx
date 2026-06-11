@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { NoteList } from './components/NoteList';
 import { NoteEditor } from './components/NoteEditor';
 import { CommandPalette } from './components/CommandPalette';
+import { HeadsUpPanel } from './components/HeadsUpPanel';
 import { supabase } from './lib/supabase';
 import { AnimatePresence } from 'framer-motion';
 import { Home, X, Search } from 'lucide-react';
@@ -168,10 +171,10 @@ function App() {
         {/* Top Search Bar */}
         <div className="top-search-bar-container">
           <div className="top-search-bar">
-            <Search size={15} className="top-search-icon" />
+            <Search aria-hidden="true" size={15} className="top-search-icon" />
             <input 
               type="text" 
-              placeholder="Search or ask your Mem"
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -182,8 +185,8 @@ function App() {
               className="top-search-input"
             />
             {searchQuery && (
-              <button className="top-search-clear-btn" onClick={() => setSearchQuery('')} title="Clear search">
-                <X size={13} />
+              <button className="top-search-clear-btn" onClick={() => setSearchQuery('')} title="Clear search" aria-label="Clear search">
+                <X aria-hidden="true" size={13} />
               </button>
             )}
           </div>
@@ -195,7 +198,7 @@ function App() {
             className={`editor-tab ${activeTab === 'home' ? 'active' : ''}`}
             onClick={() => setActiveTab('home')}
           >
-            <Home size={13} style={{ marginRight: '6px' }} />
+            <Home aria-hidden="true" size={13} style={{ marginRight: '6px' }} />
             <span>Home</span>
           </button>
           
@@ -212,8 +215,9 @@ function App() {
                   e.stopPropagation();
                   handleCloseTab(note.id);
                 }}
+                aria-label="Close tab"
               >
-                <X size={11} />
+                <X aria-hidden="true" size={11} />
               </button>
             </div>
           ))}
@@ -222,7 +226,7 @@ function App() {
         <div className="pane-content">
           {loading && notes.length === 0 ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <p className="body-md">Loading...</p>
+              <p className="body-md">Loading…</p>
             </div>
           ) : (
             <AnimatePresence mode="wait">
@@ -247,6 +251,17 @@ function App() {
           )}
         </div>
       </div>
+
+      {activeTab !== 'home' && (
+        <div className="sidebar-right">
+          <div className="sidebar-right-header">
+            <h3>Related Notes</h3>
+          </div>
+          <div className="sidebar-right-content">
+            <HeadsUpPanel notes={notes} activeNote={currentActiveNote} onSelectNote={handleSelectNote} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

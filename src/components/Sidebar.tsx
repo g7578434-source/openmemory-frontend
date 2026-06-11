@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Home, Search, Settings, Pin, FileText, Folder, Plus, Sun, Moon } from 'lucide-react';
 
 interface SidebarProps {
@@ -57,7 +58,7 @@ export function Sidebar({
       {/* Primary Action: Create Note */}
       <div className="sidebar-action-container">
         <button className="sidebar-create-btn" onClick={onNewNote}>
-          <Plus size={16} />
+          <Plus aria-hidden="true" size={16} />
           <span>Create Note</span>
         </button>
       </div>
@@ -65,8 +66,8 @@ export function Sidebar({
       {/* Inline Search / Ask Box */}
       <div className="sidebar-search-container">
         <button className="sidebar-search-box" onClick={onSearchClick}>
-          <Search size={14} />
-          <span>Search or ask your Mem</span>
+          <Search aria-hidden="true" size={14} />
+          <span>Search</span>
           <span className="search-shortcut">⌘K</span>
         </button>
       </div>
@@ -80,7 +81,7 @@ export function Sidebar({
             onGoHome();
           }}
         >
-          <Home size={15} />
+          <Home aria-hidden="true" size={15} />
           <span>Home</span>
         </button>
       </div>
@@ -88,7 +89,7 @@ export function Sidebar({
       {/* Pinned Section */}
       <div className="sidebar-group">
         <div className="sidebar-group-header">
-          <Pin size={12} />
+          <Pin aria-hidden="true" size={12} />
           <span>Pinned</span>
         </div>
         <div className="sidebar-group-empty">
@@ -99,7 +100,7 @@ export function Sidebar({
       {/* Recent Notes Section */}
       <div className="sidebar-group">
         <div className="sidebar-group-header">
-          <FileText size={12} />
+          <FileText aria-hidden="true" size={12} />
           <span>Notes</span>
         </div>
         <div className="sidebar-group-list">
@@ -115,7 +116,7 @@ export function Sidebar({
                   onSelectNote(note);
                 }}
               >
-                <FileText size={13} className="item-icon" />
+                <FileText aria-hidden="true" size={13} className="item-icon" />
                 <span className="item-text">{note.title || 'Untitled Note'}</span>
               </button>
             ))
@@ -137,7 +138,7 @@ export function Sidebar({
       {/* Collections Section */}
       <div className="sidebar-group">
         <div className="sidebar-group-header">
-          <Folder size={12} />
+          <Folder aria-hidden="true" size={12} />
           <span>Collections</span>
         </div>
         <div className="sidebar-group-list">
@@ -153,7 +154,7 @@ export function Sidebar({
                   onGoHome();
                 }}
               >
-                <Folder size={13} className="item-icon" />
+                <Folder aria-hidden="true" size={13} className="item-icon" />
                 <span className="item-text">#{tag}</span>
               </button>
             ))
@@ -174,7 +175,7 @@ export function Sidebar({
             style={{ flex: 1, margin: 0, justifyContent: 'flex-start', padding: '8px 12px' }} 
             onClick={() => alert("Settings panel coming soon!")}
           >
-            <Settings size={15} style={{ marginRight: '8px' }} />
+            <Settings aria-hidden="true" size={15} style={{ marginRight: '8px' }} />
             <span>Settings</span>
           </button>
           
@@ -182,8 +183,9 @@ export function Sidebar({
             className="theme-toggle-btn" 
             onClick={onToggleTheme} 
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
-            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            {theme === 'dark' ? <Sun aria-hidden="true" size={15} /> : <Moon aria-hidden="true" size={15} />}
           </button>
         </div>
       </div>

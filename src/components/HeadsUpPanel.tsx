@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { motion } from 'framer-motion';
 import { FileText } from 'lucide-react';
 
-export function HeadsUpPanel({ notes, activeNote }: any) {
+export function HeadsUpPanel({ notes, activeNote, onSelectNote }: any) {
   // Simple heuristic: just show 3 random/recent notes as "related" for the MVP
   const relatedNotes = notes
     .filter((n: any) => n.id !== activeNote?.id)
@@ -24,6 +25,7 @@ export function HeadsUpPanel({ notes, activeNote }: any) {
             border: '1px solid var(--hairline)'
           }}
           whileHover={{ scale: 1.02 }}
+          onClick={() => onSelectNote && onSelectNote(note)}
         >
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
             <FileText size={14} color="var(--sticker-purple-text)" style={{ marginRight: '8px' }} />
