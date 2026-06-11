@@ -56,11 +56,11 @@ function App() {
       .from('notes')
       .select('*, note_tags(tags(name))')
       .order('updated_at', { ascending: false });
-    
+
     if (data) {
       setNotes(data);
       // Sync openNotes with fresh db contents
-      setOpenNotes(prev => 
+      setOpenNotes(prev =>
         prev.map(openNote => {
           const fresh = data.find(d => d.id === openNote.id);
           return fresh ? fresh : openNote;
@@ -170,7 +170,7 @@ function App() {
       .insert({ title: '', content: '' })
       .select()
       .single();
-    
+
     if (data) {
       setNotes([data, ...notes]);
       setOpenNotes([...openNotes, data]);
@@ -186,7 +186,7 @@ function App() {
         alert(`Failed to delete note: ${error.message} (Code: ${error.code})`);
         return;
       }
-      
+
       const nextOpenNotes = openNotes.filter(n => n.id !== id);
       setOpenNotes(nextOpenNotes);
       if (activeTab === id) {
@@ -215,8 +215,8 @@ function App() {
     }
   };
 
-  const currentActiveNote = activeTab === 'home' 
-    ? null 
+  const currentActiveNote = activeTab === 'home'
+    ? null
     : (openNotes.find(n => n.id === activeTab) || notes.find(n => n.id === activeTab));
 
   // Filter notes based on activeTagFilter AND searchQuery
@@ -242,7 +242,7 @@ function App() {
 
   return (
     <div className="app-container">
-      <CommandPalette 
+      <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         notes={notes}
@@ -271,7 +271,7 @@ function App() {
         }}
         onSaveCapsule={saveCapsule}
       />
-      <Sidebar 
+      <Sidebar
         notes={notes}
         activeNote={currentActiveNote}
         onSelectNote={handleSelectNote}
@@ -284,7 +284,7 @@ function App() {
         onToggleTheme={toggleTheme}
         onStartSessionClick={() => setIsSessionModalOpen(true)}
       />
-      
+
       <div className="center-pane">
         {/* Context Capsule Status Bar */}
         <CapsuleStatusBar capsule={capsule} />
@@ -293,8 +293,8 @@ function App() {
         <div className="top-search-bar-container">
           <div className="top-search-bar">
             <Search aria-hidden="true" size={15} className="top-search-icon" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search notes…"
               value={searchQuery}
               onChange={(e) => {
@@ -318,7 +318,7 @@ function App() {
 
         {/* Navigation Tabs Bar */}
         <div className="editor-tabs-bar">
-          <button 
+          <button
             className={`editor-tab ${activeTab === 'home' ? 'active' : ''}`}
             onClick={() => setActiveTab('home')}
           >
@@ -326,22 +326,22 @@ function App() {
             <span>Home</span>
           </button>
 
-          <button 
+          <button
             className={`editor-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
             onClick={() => setActiveTab('pipeline')}
           >
             <LayoutGrid aria-hidden="true" size={13} style={{ marginRight: '6px' }} />
             <span>Pipeline</span>
           </button>
-          
+
           {openNotes.map(note => (
-            <div 
-              key={note.id} 
+            <div
+              key={note.id}
               className={`editor-tab ${activeTab === note.id ? 'active' : ''}`}
               onClick={() => setActiveTab(note.id)}
             >
               <span className="tab-title">{note.title || 'Untitled Note'}</span>
-              <button 
+              <button
                 className="tab-close-btn"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -363,26 +363,26 @@ function App() {
           ) : (
             <AnimatePresence mode="wait">
               {activeTab === 'home' ? (
-                <NoteList 
+                <NoteList
                   key="list"
-                  notes={filteredNotes} 
-                  onSelectNote={handleSelectNote} 
-                  onNewNote={handleNewNote} 
+                  notes={filteredNotes}
+                  onSelectNote={handleSelectNote}
+                  onNewNote={handleNewNote}
                   activeTagFilter={activeTagFilter}
                   onClearTagFilter={() => setActiveTagFilter(null)}
                   searchQuery={searchQuery}
                 />
               ) : activeTab === 'pipeline' ? (
-                <PipelineDashboard 
-                  key="pipeline" 
+                <PipelineDashboard
+                  key="pipeline"
                   capsule={capsule}
                   onSaveCapsule={saveCapsule}
                 />
               ) : (
-                <NoteEditor 
+                <NoteEditor
                   key={currentActiveNote?.id}
-                  note={currentActiveNote} 
-                  onNoteUpdated={fetchNotes} 
+                  note={currentActiveNote}
+                  onNoteUpdated={fetchNotes}
                   onDeleteNote={handleDeleteNote}
                   capsule={capsule}
                   onSaveCapsule={saveCapsule}
@@ -393,16 +393,7 @@ function App() {
         </div>
       </div>
 
-      {activeTab !== 'home' && activeTab !== 'pipeline' && currentActiveNote && (
-        <div className="sidebar-right">
-          <div className="sidebar-right-header">
-            <h3>Related Notes</h3>
-          </div>
-          <div className="sidebar-right-content">
-            <HeadsUpPanel notes={notes} activeNote={currentActiveNote} onSelectNote={handleSelectNote} />
-          </div>
-        </div>
-      )}
+      {/* Related Notes panel removed (per screenshot update) */}
     </div>
   );
 }
