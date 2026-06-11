@@ -15,7 +15,35 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { Bold, Italic, List, Sparkles, Trash2, X } from 'lucide-react';
+import { marked } from 'marked';
 import { ScoringForm } from './ScoringForm';
+
+marked.use({ gfm: true, breaks: false })
+
+function isHtmlContent(content: string): boolean {
+  return /^\s*<(p|div|h[1-6]|ul|ol|table|blockquote|pre|hr|input)/i.test(content)
+}
+
+function markdownToTiptapHtml(md: string): string {
+  if (!md) return ''
+  if (isHtmlContent(md)) return md
+  const html = marked.parse(md, { async: false }) as string
+  return html.replace(
+    /<ul>([\s\S]*?)<\/ul>/gi,
+    (fullMatch: string, innerContent: string) => {
+      if (!/type="checkbox"/i.test(innerContent)) return fullMatch
+      const convertedItems = innerContent.replace(
+        /<li>([\s\S]*?)<\/li>/gi,
+        (_: string, itemContent: string) => {
+          const isChecked = /checked/i.test(itemContent)
+          const textContent = itemContent.replace(/<input[^>]*>/gi, '').trim()
+          return `<li data-type="taskItem" data-checked="${isChecked}"><p>${textContent}</p></li>`
+        }
+      )
+      return `<ul data-type="taskList">\n${convertedItems}\n</ul>`
+    }
+  )
+}
 
 const getBadgeColor = (tagName: string) => {
   const colors = ['badge-sky', 'badge-purple', 'badge-pink', 'badge-teal', 'badge-orange'];
@@ -257,46 +285,6 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
     }
   };
 
-  // Initialize Tiptap Editor
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Placeholder.configure({
-        placeholder: 'Press / for commands, or start typing...',
-      }),
-      TaskList,
-      TaskItem.configure({
-        nested: true,
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'editor-link',
-        },
-      }),
-      Table.configure({
-        resizable: true,
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
-    ],
-    content: note?.content || '',
-    onUpdate: ({ editor }) => {
-      handleSaveContent(editor.getHTML());
-    },
-  });
-
-  useEffect(() => {
-    setTitle(note?.title || '');
-    setConfirmDelete(false);
-    if (editor && note?.content !== editor.getHTML()) {
-      editor.commands.setContent(note?.content || '');
-    }
-    setLastSaved(note?.updated_at ? new Date(note.updated_at) : null);
-    setSaveError(null);
-  }, [note, editor]);
-
   useEffect(() => {
     if (!lastSaved) {
       setLastSavedText('');
@@ -369,6 +357,47 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
       setSaving(false);
     }
   };
+
+  // Initialize Tiptap Editor
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Placeholder.configure({
+        placeholder: 'Press / for commands, or start typing...',
+      }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'editor-link',
+        },
+      }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+    ],
+    content: markdownToTiptapHtml(note?.content || ''),
+    onUpdate: ({ editor }) => {
+      handleSaveContent(editor.getHTML());
+    },
+  });
+
+  useEffect(() => {
+    setTitle(note?.title || '');
+    setConfirmDelete(false);
+    if (editor && note?.content !== editor.getHTML()) {
+      const html = markdownToTiptapHtml(note?.content || '');
+      editor.commands.setContent(html);
+    }
+    setLastSaved(note?.updated_at ? new Date(note.updated_at) : null);
+    setSaveError(null);
+  }, [note, editor]);
 
   return (
     <motion.div 

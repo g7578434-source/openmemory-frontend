@@ -32,7 +32,7 @@ export function CapsuleStatusBar({ capsule }: { capsule: CapsuleState | null }) 
 
   if (!capsule || !capsule.pipeline) return null;
 
-  const activeIdeas = capsule.pipeline.filter(p => p.status === 'raw-idea');
+  const activeIdeas = (capsule.pipeline ?? []).filter(p => p.status === 'raw-idea');
   
   // Calculate Health Flags
   const healthFlags: { type: 'success' | 'warning'; text: string }[] = [];

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Award, CheckCircle, XCircle } from 'lucide-react';
+import { parseScoresFromContent } from '../lib/parseScore';
 
 interface ScoringFormProps {
   noteId: string;
@@ -21,23 +22,14 @@ export function ScoringForm({ noteId, noteContent, onSaveScore }: ScoringFormPro
   const [build, setBuild] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  // Parse scores from note content HTML on load/update
+  // Parse scores from note content on load/update
   useEffect(() => {
-    const regex = /Score:\s*Traffic=(\d+),\s*CPC=(\d+),\s*Repeat=(\d+),\s*Share=(\d+),\s*Build=(\d+)/i;
-    const match = noteContent.match(regex);
-    if (match) {
-      setTraffic(parseInt(match[1], 10) || 0);
-      setCpc(parseInt(match[2], 10) || 0);
-      setRepeat(parseInt(match[3], 10) || 0);
-      setShare(parseInt(match[4], 10) || 0);
-      setBuild(parseInt(match[5], 10) || 0);
-    } else {
-      setTraffic(0);
-      setCpc(0);
-      setRepeat(0);
-      setShare(0);
-      setBuild(0);
-    }
+    const parsed = parseScoresFromContent(noteContent);
+    setTraffic(parsed.traffic);
+    setCpc(parsed.cpc);
+    setRepeat(parsed.repeat);
+    setShare(parsed.share);
+    setBuild(parsed.build);
   }, [noteId, noteContent]);
 
   const total = traffic + cpc + repeat + share + build;
