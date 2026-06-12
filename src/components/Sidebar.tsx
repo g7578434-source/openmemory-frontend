@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Settings, Folder, Plus, Sun, Moon, Inbox, Files } from 'lucide-react';
+import { Search, Settings, Plus, Sun, Moon, Files } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const FOLDER_GROUPS: { section: string; tags: string[] }[] = [
