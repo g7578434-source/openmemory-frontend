@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { ArrowUpDown, Check, X, Filter } from 'lucide-react';

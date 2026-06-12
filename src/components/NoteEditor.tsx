@@ -474,7 +474,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
           top: coords.bottom + window.scrollY,
           left: coords.left + window.scrollX
         });
-      } catch (err) {
+      } catch {
         setTagPopupCoords({ top: 100, left: 100 });
       }
       setSelectedTagIndex(0);

@@ -15,6 +15,7 @@ export function parseScoresFromContent(content: string): NoteScores {
   const lines = content.split('\n')
 
   for (const line of lines) {
+    // eslint-disable-next-line no-useless-escape
     const match = line.match(/\|\s*\*{0,2}([\w\s\/\(\)]+?)\*{0,2}\s*\|\s*\*{0,2}(\d+)\/(?:10|50)\*{0,2}/)
     if (!match) continue
 

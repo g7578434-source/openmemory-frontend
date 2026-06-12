@@ -31,6 +31,28 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  const handleNewNote = () => {
+    // If an empty draft note already exists, just switch to it
+    const existingDraft = openNotes.find(n => n.id.startsWith('draft-'));
+    if (existingDraft) {
+      setActiveTab(existingDraft.id);
+      return;
+    }
+
+    const draftId = `draft-${Date.now()}`;
+    const newDraft = {
+      id: draftId,
+      title: '',
+      content: '',
+      status: 'note',
+      note_tags: []
+    };
+
+    setNotes(prev => [newDraft, ...prev]);
+    setOpenNotes(prev => [...prev, newDraft]);
+    setActiveTab(draftId);
+  };
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
@@ -214,28 +236,6 @@ function App() {
       setOpenNotes([...openNotes, note]);
     }
     setActiveTab(note.id);
-  };
-
-  const handleNewNote = () => {
-    // If an empty draft note already exists, just switch to it
-    const existingDraft = openNotes.find(n => n.id.startsWith('draft-'));
-    if (existingDraft) {
-      setActiveTab(existingDraft.id);
-      return;
-    }
-
-    const draftId = `draft-${Date.now()}`;
-    const newDraft = {
-      id: draftId,
-      title: '',
-      content: '',
-      status: 'note',
-      note_tags: []
-    };
-
-    setNotes(prev => [newDraft, ...prev]);
-    setOpenNotes(prev => [...prev, newDraft]);
-    setActiveTab(draftId);
   };
 
   const handleDeleteNote = async (id: string) => {
