@@ -718,50 +718,7 @@ textarea {
   letter-spacing: -0.02em;
 }
 
-.filter-tabs {
-  display: flex;
-  background-color: rgba(0, 0, 0, 0.04);
-  padding: 2px;
-  border-radius: var(--radius-full);
-  align-items: center;
-}
 
-.filter-tab-btn {
-  padding: 4px 12px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-secondary);
-  border-radius: var(--radius-full);
-  transition: var(--transition-fluid);
-}
-
-.filter-tab-btn:hover {
-  color: var(--ink);
-}
-
-.filter-tab-btn.active {
-  background-color: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.show-filters-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--hairline);
-  font-size: 13px;
-  color: var(--ink-secondary);
-  background-color: var(--surface);
-  transition: var(--transition-fluid);
-}
-
-.show-filters-btn:hover {
-  background-color: var(--canvas-soft);
-  color: var(--ink);
-}
 
 .promo-banner {
   display: flex;

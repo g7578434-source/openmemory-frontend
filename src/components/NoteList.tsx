@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { motion } from 'framer-motion';
-import { Plus, Filter } from 'lucide-react';
-import { useState } from 'react';
+import { Plus } from 'lucide-react';
 
 const getBadgeColor = (tagName: string) => {
   const colors = ['badge-sky', 'badge-purple', 'badge-pink', 'badge-teal', 'badge-orange'];
@@ -34,8 +33,6 @@ const stripHtml = (html: string) => {
 };
 
 export function NoteList({ notes, onSelectNote, onNewNote, activeTagFilter, onClearTagFilter, searchQuery }: any) {
-  const [activeTab, setActiveTab] = useState('all');
-
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -65,32 +62,6 @@ export function NoteList({ notes, onSelectNote, onNewNote, activeTagFilter, onCl
               'Notes'
             )}
           </h1>
-          <div className="filter-tabs">
-            <button 
-              className={`filter-tab-btn ${activeTab === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveTab('all')}
-            >
-              All
-            </button>
-            <button 
-              className={`filter-tab-btn ${activeTab === 'created' ? 'active' : ''}`}
-              onClick={() => setActiveTab('created')}
-            >
-              Created by me
-            </button>
-            <button 
-              className={`filter-tab-btn ${activeTab === 'shared' ? 'active' : ''}`}
-              onClick={() => setActiveTab('shared')}
-            >
-              Shared with me
-            </button>
-          </div>
-        </div>
-        <div className="header-right">
-          <button className="show-filters-btn">
-            <Filter size={14} />
-            <span>Show Filters</span>
-          </button>
         </div>
       </div>
 
