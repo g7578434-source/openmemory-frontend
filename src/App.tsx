@@ -5,18 +5,17 @@ import { Sidebar } from './components/Sidebar';
 import { NoteList } from './components/NoteList';
 import { NoteEditor } from './components/NoteEditor';
 import { PipelineDashboard } from './components/PipelineDashboard';
-import { CapsuleStatusBar } from './components/CapsuleStatusBar';
 import { CommandPalette } from './components/CommandPalette';
 import { supabase } from './lib/supabase';
 import { AnimatePresence } from 'framer-motion';
-import { Home, X, Search, LayoutGrid } from 'lucide-react';
+import { Home, X, Plus } from 'lucide-react';
 
 function App() {
   const [notes, setNotes] = useState<any[]>([]);
   const [openNotes, setOpenNotes] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<string>('home'); // 'home' or uuid string
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [capsule, setCapsule] = useState<any | null>(null);
@@ -66,9 +65,9 @@ function App() {
       if (e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const activeEl = document.activeElement;
         const isEditing = activeEl && (
-          activeEl.tagName === 'INPUT' || 
-          activeEl.tagName === 'TEXTAREA' || 
-          activeEl.hasAttribute('contenteditable') || 
+          activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.hasAttribute('contenteditable') ||
           activeEl.closest('.ProseMirror')
         );
         if (!isEditing) {
@@ -110,7 +109,7 @@ function App() {
       // Preserve any local in-memory draft notes
       const drafts = notes.filter(n => n.id.startsWith('draft-'));
       setNotes([...drafts, ...data]);
-      
+
       // Sync openNotes with fresh db contents while preserving drafts
       setOpenNotes(prev =>
         prev.map(openNote => {
@@ -347,36 +346,6 @@ function App() {
       />
 
       <div className="center-pane">
-        {/* Context Capsule Status Bar */}
-        <CapsuleStatusBar capsule={capsule} />
-
-        {/* Top Search Bar */}
-        <div className="top-search-bar-container">
-          <div className="top-search-bar">
-            <Search aria-hidden="true" size={15} className="top-search-icon" />
-            <input
-              type="text"
-              placeholder="Search notes…"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (activeTab !== 'home') {
-                  setActiveTab('home');
-                }
-              }}
-              className="top-search-input"
-            />
-            {!searchQuery && (
-              <span className="search-shortcut">⌘K</span>
-            )}
-            {searchQuery && (
-              <button className="top-search-clear-btn" onClick={() => setSearchQuery('')} title="Clear search" aria-label="Clear search">
-                <X aria-hidden="true" size={13} />
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* Navigation Tabs Bar */}
         <div className="editor-tabs-bar">
           <button
@@ -385,14 +354,6 @@ function App() {
           >
             <Home aria-hidden="true" size={13} style={{ marginRight: '6px' }} />
             <span>Home</span>
-          </button>
-
-          <button
-            className={`editor-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pipeline')}
-          >
-            <LayoutGrid aria-hidden="true" size={13} style={{ marginRight: '6px' }} />
-            <span>Pipeline</span>
           </button>
 
           {openNotes.map(note => (
@@ -450,6 +411,18 @@ function App() {
                 />
               )}
             </AnimatePresence>
+          )}
+
+          {/* Floating Action Button (New Note) */}
+          {!loading && (
+            <button
+              className="fab-new-note"
+              onClick={handleNewNote}
+              aria-label="New Note"
+              title="New Note"
+            >
+              <Plus aria-hidden="true" size={18} />
+            </button>
           )}
         </div>
       </div>
