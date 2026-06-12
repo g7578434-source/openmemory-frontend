@@ -1,14 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { NoteList } from './components/NoteList';
 import { NoteEditor } from './components/NoteEditor';
 import { PipelineDashboard } from './components/PipelineDashboard';
 import { CapsuleStatusBar } from './components/CapsuleStatusBar';
 import { CommandPalette } from './components/CommandPalette';
-import { HeadsUpPanel } from './components/HeadsUpPanel';
-import { SessionStartModal } from './components/SessionStartModal';
 import { supabase } from './lib/supabase';
 import { AnimatePresence } from 'framer-motion';
 import { Home, X, Search, LayoutGrid } from 'lucide-react';
@@ -21,7 +19,6 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
   const [capsule, setCapsule] = useState<any | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
@@ -39,16 +36,68 @@ function App() {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
+  // Keep track of the previous active tab to clean up empty drafts
+  const prevActiveTabRef = useRef<string>('home');
+
+  useEffect(() => {
+    const prevActiveTab = prevActiveTabRef.current;
+    prevActiveTabRef.current = activeTab;
+
+    if (prevActiveTab.startsWith('draft-') && prevActiveTab !== activeTab) {
+      const draftNote = openNotes.find(n => n.id === prevActiveTab);
+      const isEmpty = !draftNote?.title?.trim() && (!draftNote?.content || draftNote.content === '' || draftNote.content === '<p></p>');
+      if (isEmpty) {
+        setNotes(prev => prev.filter(n => n.id !== prevActiveTab));
+        setOpenNotes(prev => prev.filter(n => n.id !== prevActiveTab));
+      }
+    }
+  }, [activeTab, openNotes]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Command Palette (Cmd+K / Ctrl+K)
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen(prev => !prev);
+        return;
+      }
+
+      // New Note (N key when not typing)
+      if (e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const activeEl = document.activeElement;
+        const isEditing = activeEl && (
+          activeEl.tagName === 'INPUT' || 
+          activeEl.tagName === 'TEXTAREA' || 
+          activeEl.hasAttribute('contenteditable') || 
+          activeEl.closest('.ProseMirror')
+        );
+        if (!isEditing) {
+          e.preventDefault();
+          handleNewNote();
+          return;
+        }
+      }
+
+      // Escape to discard empty draft
+      if (e.key === 'Escape') {
+        const activeEl = document.activeElement;
+        const isEditorActive = activeEl && activeEl.closest('.ProseMirror');
+        if (isEditorActive && activeTab.startsWith('draft-')) {
+          const draftNote = openNotes.find(n => n.id === activeTab);
+          const isEmpty = !draftNote?.title?.trim() && (!draftNote?.content || draftNote.content === '' || draftNote.content === '<p></p>');
+          if (isEmpty) {
+            e.preventDefault();
+            // Discard draft
+            setNotes(prev => prev.filter(n => n.id !== activeTab));
+            setOpenNotes(prev => prev.filter(n => n.id !== activeTab));
+            setActiveTab('home');
+          }
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [activeTab, openNotes, notes]);
 
   const fetchNotes = async () => {
     setLoading(true);
@@ -58,10 +107,14 @@ function App() {
       .order('updated_at', { ascending: false });
 
     if (data) {
-      setNotes(data);
-      // Sync openNotes with fresh db contents
+      // Preserve any local in-memory draft notes
+      const drafts = notes.filter(n => n.id.startsWith('draft-'));
+      setNotes([...drafts, ...data]);
+      
+      // Sync openNotes with fresh db contents while preserving drafts
       setOpenNotes(prev =>
         prev.map(openNote => {
+          if (openNote.id.startsWith('draft-')) return openNote;
           const fresh = data.find(d => d.id === openNote.id);
           return fresh ? fresh : openNote;
         })
@@ -164,22 +217,37 @@ function App() {
     setActiveTab(note.id);
   };
 
-  const handleNewNote = async () => {
-    const { data } = await supabase
-      .from('notes')
-      .insert({ title: '', content: '' })
-      .select()
-      .single();
-
-    if (data) {
-      setNotes([data, ...notes]);
-      setOpenNotes([...openNotes, data]);
-      setActiveTab(data.id);
+  const handleNewNote = () => {
+    // If an empty draft note already exists, just switch to it
+    const existingDraft = openNotes.find(n => n.id.startsWith('draft-'));
+    if (existingDraft) {
+      setActiveTab(existingDraft.id);
+      return;
     }
+
+    const draftId = `draft-${Date.now()}`;
+    const newDraft = {
+      id: draftId,
+      title: '',
+      content: '',
+      status: 'note',
+      note_tags: []
+    };
+
+    setNotes(prev => [newDraft, ...prev]);
+    setOpenNotes(prev => [...prev, newDraft]);
+    setActiveTab(draftId);
   };
 
   const handleDeleteNote = async (id: string) => {
     try {
+      if (id.startsWith('draft-')) {
+        setNotes(prev => prev.filter(n => n.id !== id));
+        setOpenNotes(prev => prev.filter(n => n.id !== id));
+        setActiveTab(prev => prev === id ? 'home' : prev);
+        return;
+      }
+
       const { error } = await supabase.from('notes').delete().eq('id', id);
       if (error) {
         console.error("Supabase delete failed:", error);
@@ -206,6 +274,9 @@ function App() {
   const handleCloseTab = (id: string) => {
     const nextOpenNotes = openNotes.filter(n => n.id !== id);
     setOpenNotes(nextOpenNotes);
+    if (id.startsWith('draft-')) {
+      setNotes(prev => prev.filter(n => n.id !== id));
+    }
     if (activeTab === id) {
       if (nextOpenNotes.length > 0) {
         setActiveTab(nextOpenNotes[nextOpenNotes.length - 1].id);
@@ -213,6 +284,20 @@ function App() {
         setActiveTab('home');
       }
     }
+  };
+
+  const handleNoteUpdated = async (newRealId?: string, oldDraftId?: string) => {
+    if (newRealId && oldDraftId) {
+      prevActiveTabRef.current = newRealId;
+      setActiveTab(newRealId);
+      setOpenNotes(prev =>
+        prev.map(n => n.id === oldDraftId ? { ...n, id: newRealId } : n)
+      );
+      setNotes(prev =>
+        prev.map(n => n.id === oldDraftId ? { ...n, id: newRealId } : n)
+      );
+    }
+    await fetchNotes();
   };
 
   const currentActiveNote = activeTab === 'home'
@@ -248,29 +333,6 @@ function App() {
         notes={notes}
         onSelectNote={handleSelectNote}
       />
-      <SessionStartModal
-        isOpen={isSessionModalOpen}
-        onClose={() => setIsSessionModalOpen(false)}
-        capsule={capsule}
-        onSessionStarted={async (noteId) => {
-          await fetchNotes();
-          const { data } = await supabase
-            .from('notes')
-            .select('*, note_tags(tags(name))')
-            .eq('id', noteId)
-            .single();
-          if (data) {
-            setOpenNotes(prev => {
-              if (!prev.some(n => n.id === data.id)) {
-                return [...prev, data];
-              }
-              return prev;
-            });
-            setActiveTab(data.id);
-          }
-        }}
-        onSaveCapsule={saveCapsule}
-      />
       <Sidebar
         notes={notes}
         activeNote={currentActiveNote}
@@ -282,7 +344,6 @@ function App() {
         onSelectTagFilter={setActiveTagFilter}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onStartSessionClick={() => setIsSessionModalOpen(true)}
       />
 
       <div className="center-pane">
@@ -382,7 +443,7 @@ function App() {
                 <NoteEditor
                   key={currentActiveNote?.id}
                   note={currentActiveNote}
-                  onNoteUpdated={fetchNotes}
+                  onNoteUpdated={handleNoteUpdated}
                   onDeleteNote={handleDeleteNote}
                   capsule={capsule}
                   onSaveCapsule={saveCapsule}

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -51,7 +51,6 @@ const getBadgeColor = (tagName: string) => {
 };
 
 export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveCapsule }: any) {
-  const [title, setTitle] = useState(note?.title || '');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(note?.updated_at ? new Date(note.updated_at) : null);
@@ -66,6 +65,23 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
   const [killReason, setKillReason] = useState('');
   const [competitorsText, setCompetitorsText] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Tag Autocomplete Popover States
+  const [tagQuery, setTagQuery] = useState<string | null>(null);
+  const [tagPopupCoords, setTagPopupCoords] = useState<{ top: number; left: number } | null>(null);
+  const [allTags, setAllTags] = useState<any[]>([]);
+  const [selectedTagIndex, setSelectedTagIndex] = useState(0);
+
+  const fetchAllTags = async () => {
+    const { data } = await supabase.from('tags').select('id, name').order('name');
+    if (data) {
+      setAllTags(data);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllTags();
+  }, []);
 
   const handleKeepConfirm = async () => {
     if (!note?.id) return;
@@ -315,20 +331,72 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
     return () => clearInterval(interval);
   }, [lastSaved]);
 
-  // Debounced save for content
-  const handleSaveContent = async (htmlContent: string) => {
+  const extractTitleFromEditor = (edt: any) => {
+    const json = edt.getJSON();
+    if (!json || !json.content) return 'Untitled';
+
+    // Find the first heading of level 1
+    for (const node of json.content) {
+      if (node.type === 'heading' && node.attrs?.level === 1) {
+        return node.content?.[0]?.text || 'Untitled';
+      }
+    }
+
+    // Fallback: use first block text
+    const firstNode = json.content[0];
+    if (firstNode && firstNode.content?.[0]?.text) {
+      return firstNode.content[0].text;
+    }
+    return 'Untitled';
+  };
+
+  const saveTimer = useRef<any>(null);
+
+  // Debounced save for content and title
+  const handleSave = async (htmlContent: string, extractedTitle: string) => {
     if (!note?.id) return;
     setSaving(true);
     setSaveError(null);
     try {
-      const { error } = await supabase
-        .from('notes')
-        .update({ content: htmlContent })
-        .eq('id', note.id);
-      if (error) throw error;
-      setLastSaved(new Date());
-      setPulse(true);
-      setTimeout(() => setPulse(false), 1000);
+      if (note.id.startsWith('draft-')) {
+        // Create new note
+        const { data, error } = await supabase
+          .from('notes')
+          .insert({
+            title: extractedTitle,
+            content: htmlContent,
+            status: 'note'
+          })
+          .select()
+          .single();
+        if (error) throw error;
+
+        setLastSaved(new Date());
+        setPulse(true);
+        setTimeout(() => setPulse(false), 1000);
+
+        if (onNoteUpdated) {
+          await onNoteUpdated(data.id, note.id);
+        }
+      } else {
+        // Update existing note
+        const { error } = await supabase
+          .from('notes')
+          .update({
+            title: extractedTitle,
+            content: htmlContent
+          })
+          .eq('id', note.id);
+        if (error) throw error;
+
+        setLastSaved(new Date());
+        setPulse(true);
+        setTimeout(() => setPulse(false), 1000);
+
+        if (onNoteUpdated) {
+          await onNoteUpdated();
+        }
+      }
     } catch (err: any) {
       setSaveError(err.message || 'Error saving');
     } finally {
@@ -336,27 +404,106 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
     }
   };
 
-  // Immediate save for title
-  const handleSaveTitle = async () => {
+  const handleAddTag = async (tagName: string) => {
     if (!note?.id) return;
-    setSaving(true);
-    setSaveError(null);
     try {
-      const { error } = await supabase
-        .from('notes')
-        .update({ title })
-        .eq('id', note.id);
-      if (error) throw error;
-      setLastSaved(new Date());
-      setPulse(true);
-      setTimeout(() => setPulse(false), 1000);
-      if (onNoteUpdated) onNoteUpdated();
+      let { data: tag } = await supabase
+        .from('tags')
+        .select('id, name')
+        .eq('name', tagName)
+        .maybeSingle();
+
+      if (!tag) {
+        const { data: newTag, error: tagErr } = await supabase
+          .from('tags')
+          .insert({ name: tagName })
+          .select()
+          .single();
+        if (tagErr) throw tagErr;
+        tag = newTag;
+      }
+
+      if (!tag) {
+        throw new Error('Failed to retrieve or create tag');
+      }
+
+      // Check if junction already exists
+      const alreadyHas = note.note_tags?.some((nt: any) => nt.tags?.id === tag.id);
+      if (!alreadyHas) {
+        const { error } = await supabase
+          .from('note_tags')
+          .insert({ note_id: note.id, tag_id: tag.id });
+        if (error) throw error;
+      }
+
+      await fetchAllTags();
+      if (onNoteUpdated) await onNoteUpdated();
     } catch (err: any) {
-      setSaveError(err.message || 'Error saving');
-    } finally {
-      setSaving(false);
+      alert(`Error adding tag: ${err.message}`);
     }
   };
+
+  const handleRemoveTag = async (tagId: string) => {
+    if (!note?.id) return;
+    try {
+      const { error } = await supabase
+        .from('note_tags')
+        .delete()
+        .eq('note_id', note.id)
+        .eq('tag_id', tagId);
+      if (error) throw error;
+      if (onNoteUpdated) await onNoteUpdated();
+    } catch (err: any) {
+      alert(`Error removing tag: ${err.message}`);
+    }
+  };
+
+  const checkTagTrigger = (edt: any) => {
+    const { view, state } = edt;
+    const { $from } = state.selection;
+    const textBefore = $from.parent.textBetween(Math.max(0, $from.parentOffset - 20), $from.parentOffset, null, '\n');
+    const hashMatch = textBefore.match(/#(\w*)$/);
+
+    if (hashMatch) {
+      const query = hashMatch[1];
+      setTagQuery(query);
+
+      try {
+        const coords = view.coordsAtPos($from.pos);
+        setTagPopupCoords({
+          top: coords.bottom + window.scrollY,
+          left: coords.left + window.scrollX
+        });
+      } catch (err) {
+        setTagPopupCoords({ top: 100, left: 100 });
+      }
+      setSelectedTagIndex(0);
+    } else {
+      setTagQuery(null);
+      setTagPopupCoords(null);
+    }
+  };
+
+  const handleSelectTag = async (tagName: string) => {
+    if (!editor) return;
+
+    const { state } = editor;
+    const { $from } = state.selection;
+    const textBefore = $from.parent.textBetween(Math.max(0, $from.parentOffset - 20), $from.parentOffset, null, '\n');
+    const hashMatch = textBefore.match(/#(\w*)$/);
+
+    if (hashMatch) {
+      const from = $from.pos - hashMatch[0].length;
+      const to = $from.pos;
+      editor.chain().focus().deleteRange({ from, to }).run();
+    }
+
+    await handleAddTag(tagName);
+    setTagQuery(null);
+    setTagPopupCoords(null);
+  };
+
+  const filteredTags = allTags.filter(t => t.name.toLowerCase().includes((tagQuery || '').toLowerCase()));
 
   // Initialize Tiptap Editor
   const editor = useEditor({
@@ -384,12 +531,81 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
     ],
     content: markdownToTiptapHtml(note?.content || ''),
     onUpdate: ({ editor }) => {
-      handleSaveContent(editor.getHTML());
+      clearTimeout(saveTimer.current);
+      setSaving(true);
+      setSaveError(null);
+
+      const currentHTML = editor.getHTML();
+      const extractedTitle = extractTitleFromEditor(editor);
+
+      saveTimer.current = setTimeout(() => {
+        handleSave(currentHTML, extractedTitle);
+      }, 1500);
+
+      checkTagTrigger(editor);
     },
+    onSelectionUpdate: ({ editor }) => {
+      checkTagTrigger(editor);
+    },
+    editorProps: {
+      handleKeyDown: (_view, event) => {
+        if (tagQuery !== null) {
+          const tagsList = [...filteredTags];
+          if (tagQuery && !tagsList.some(t => t.name.toLowerCase() === tagQuery.toLowerCase())) {
+            tagsList.push({ id: 'new', name: tagQuery });
+          }
+
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setSelectedTagIndex(prev => Math.min(tagsList.length - 1, prev + 1));
+            return true;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setSelectedTagIndex(prev => Math.max(0, prev - 1));
+            return true;
+          }
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            const selected = tagsList[selectedTagIndex];
+            if (selected) {
+              handleSelectTag(selected.name);
+            }
+            return true;
+          }
+          if (event.key === 'Escape') {
+            setTagQuery(null);
+            setTagPopupCoords(null);
+            return true;
+          }
+        }
+
+        // Ctrl+S / Cmd+S force save
+        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+          event.preventDefault();
+          clearTimeout(saveTimer.current);
+          const currentHTML = editor?.getHTML();
+          if (currentHTML && editor) {
+            const extractedTitle = extractTitleFromEditor(editor);
+            handleSave(currentHTML, extractedTitle);
+          }
+          return true;
+        }
+
+        return false;
+      }
+    }
   });
 
   useEffect(() => {
-    setTitle(note?.title || '');
+    // Synchronously flush any active saves before switching note
+    if (saveTimer.current && editor) {
+      clearTimeout(saveTimer.current);
+      const currentHTML = editor.getHTML();
+      const extractedTitle = extractTitleFromEditor(editor);
+      handleSave(currentHTML, extractedTitle);
+    }
+
     setConfirmDelete(false);
     if (editor && note?.content !== editor.getHTML()) {
       const html = markdownToTiptapHtml(note?.content || '');
@@ -400,7 +616,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
   }, [note, editor]);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 10 }}
@@ -412,14 +628,14 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginLeft: 'auto' }}>
             {note?.status === 'raw-idea' && (
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
+                <button
                   onClick={() => setShowKeepModal(true)}
                   className="btn-action-promote"
                   style={{ padding: '4px 10px', height: '28px', fontSize: '12.5px', borderRadius: 'var(--radius-sm)' }}
                 >
                   Keep ✅
                 </button>
-                <button 
+                <button
                   onClick={() => setShowKillModal(true)}
                   className="btn-action-kill"
                   style={{ padding: '4px 10px', height: '28px', fontSize: '12.5px', borderRadius: 'var(--radius-sm)' }}
@@ -431,7 +647,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
             {confirmDelete ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 500 }}>Confirm delete?</span>
-                <button 
+                <button
                   onClick={() => {
                     console.log("Delete confirmed. ID:", note.id);
                     onDeleteNote(note.id);
@@ -442,7 +658,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
                 >
                   Yes, delete
                 </button>
-                <button 
+                <button
                   onClick={() => setConfirmDelete(false)}
                   style={{ fontSize: '12px', color: 'var(--ink-muted)', cursor: 'pointer', padding: '4px 8px' }}
                 >
@@ -450,7 +666,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
                 </button>
               </div>
             ) : (
-              <button 
+              <button
                 onClick={() => {
                   console.log("Delete clicked. Current note object:", note);
                   if (!note || !note.id) {
@@ -469,16 +685,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
           </div>
         </div>
 
-        <input 
-          type="text" 
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={handleSaveTitle}
-          placeholder="Untitled Note"
-          className="note-title-input"
-        />
-        
-        {/* Tag Display */}
+        {/* Tag Display (Removable Pills) */}
         {note.note_tags && note.note_tags.length > 0 && (
           <div style={{ marginBottom: 'var(--spacing-md)' }}>
             {note.note_tags.map((nt: any, idx: number) => {
@@ -486,6 +693,13 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
               return (
                 <span key={idx} className={`badge-pill ${getBadgeColor(nt.tags.name)}`}>
                   #{nt.tags.name}
+                  <button
+                    onClick={() => handleRemoveTag(nt.tags.id)}
+                    className="tag-chip-remove"
+                    aria-label={`Remove tag ${nt.tags.name}`}
+                  >
+                    ×
+                  </button>
                 </span>
               );
             })}
@@ -540,8 +754,9 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
         <div className="editor-bottom-bar">
           <div className={`save-indicator ${pulse ? 'pulse' : ''} ${saving ? 'saving' : ''} ${saveError ? 'error' : ''}`}>
             {saving ? (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <span className="spinner-micro" /> Saving…
+              <span className="save-indicator-text save-indicator-saving">
+                <span className="skeleton skeleton-saving" />
+                Saving…
               </span>
             ) : saveError ? (
               <span className="save-error-text">Save failed — check connection</span>
@@ -558,7 +773,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
       <AnimatePresence>
         {showKeepModal && (
           <div className="modal-backdrop">
-            <motion.div 
+            <motion.div
               className="modal-content glass-panel"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -587,15 +802,15 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
                 </div>
               </div>
               <div className="modal-footer">
-                <button 
-                  onClick={() => setShowKeepModal(false)} 
+                <button
+                  onClick={() => setShowKeepModal(false)}
                   className="btn-utility"
                   disabled={actionLoading}
                 >
                   Cancel
                 </button>
-                <button 
-                  onClick={handleKeepConfirm} 
+                <button
+                  onClick={handleKeepConfirm}
                   className="btn-primary"
                   disabled={actionLoading}
                   style={{ backgroundColor: 'var(--primary)', color: 'var(--on-primary)', borderRadius: 'var(--radius-md)', padding: '6px 16px', fontSize: '13.5px' }}
@@ -612,7 +827,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
       <AnimatePresence>
         {showKillModal && (
           <div className="modal-backdrop">
-            <motion.div 
+            <motion.div
               className="modal-content glass-panel"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -651,15 +866,15 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
                 </div>
               </div>
               <div className="modal-footer">
-                <button 
-                  onClick={() => setShowKillModal(false)} 
+                <button
+                  onClick={() => setShowKillModal(false)}
                   className="btn-utility"
                   disabled={actionLoading}
                 >
                   Cancel
                 </button>
-                <button 
-                  onClick={handleKillConfirm} 
+                <button
+                  onClick={handleKillConfirm}
                   className="btn-danger"
                   disabled={!killReason.trim() || actionLoading}
                 >
@@ -670,6 +885,41 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
           </div>
         )}
       </AnimatePresence>
+
+      {tagQuery !== null && tagPopupCoords && (
+        <div
+          className="tag-autocomplete-popup"
+          style={{
+            position: 'absolute',
+            top: `${tagPopupCoords.top}px`,
+            left: `${tagPopupCoords.left}px`,
+          }}
+        >
+          {filteredTags.map((t, idx) => (
+            <button
+              key={t.id}
+              className={`tag-autocomplete-item ${idx === selectedTagIndex ? 'active' : ''}`}
+              onClick={() => handleSelectTag(t.name)}
+            >
+              #{t.name}
+            </button>
+          ))}
+          {tagQuery && !filteredTags.some(t => t.name.toLowerCase() === tagQuery.toLowerCase()) && (
+            <button
+              className={`tag-autocomplete-item ${filteredTags.length === selectedTagIndex ? 'active' : ''}`}
+              onClick={() => handleSelectTag(tagQuery)}
+              style={{ fontStyle: 'italic', borderTop: '1px solid var(--hairline)' }}
+            >
+              + Create tag "{tagQuery}"
+            </button>
+          )}
+          {filteredTags.length === 0 && !tagQuery && (
+            <div style={{ padding: '6px 10px', fontSize: '12px', color: 'var(--ink-faint)' }}>
+              Type to search tags...
+            </div>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
