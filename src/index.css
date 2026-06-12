@@ -2416,6 +2416,7 @@ textarea {
 /* Firefox */
 .scoring-input[type=number] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .scoring-total-display {
