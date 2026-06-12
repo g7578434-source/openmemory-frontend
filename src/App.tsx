@@ -9,6 +9,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { supabase } from './lib/supabase';
 import { AnimatePresence } from 'framer-motion';
 import { Home, X, Plus } from 'lucide-react';
+import { getDisplayTitle } from './lib/noteTitleHelper';
 
 function App() {
   const [notes, setNotes] = useState<any[]>([]);
@@ -362,7 +363,7 @@ function App() {
               className={`editor-tab ${activeTab === note.id ? 'active' : ''}`}
               onClick={() => setActiveTab(note.id)}
             >
-              <span className="tab-title">{note.title || 'Untitled Note'}</span>
+              <span className="tab-title">{getDisplayTitle(note)}</span>
               <button
                 className="tab-close-btn"
                 onClick={(e) => {

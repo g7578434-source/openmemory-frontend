@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
+import { getDisplayTitle } from '../lib/noteTitleHelper';
 
 const getBadgeColor = (tagName: string) => {
   const colors = ['badge-sky', 'badge-purple', 'badge-pink', 'badge-teal', 'badge-orange'];
@@ -98,7 +99,7 @@ export function NoteList({ notes, onSelectNote, onNewNote, activeTagFilter, onCl
               </div>
               <div className="note-item-content">
                 <div className="note-item-header">
-                  <span className="note-item-title">{note.title || 'Untitled Note'}</span>
+                  <span className="note-item-title">{getDisplayTitle(note)}</span>
                 </div>
                 {note.note_tags && note.note_tags.length > 0 && (
                   <div className="note-item-tags" style={{ marginTop: '2px', marginBottom: '4px' }}>

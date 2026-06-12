@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, FileText } from 'lucide-react';
+import { getDisplayTitle } from '../lib/noteTitleHelper';
 
 export function CommandPalette({ notes, isOpen, onClose, onSelectNote }: any) {
   const [query, setQuery] = useState('');
@@ -164,7 +165,7 @@ export function CommandPalette({ notes, isOpen, onClose, onSelectNote }: any) {
                     onMouseEnter={() => setSelectedIndex(idx)}
                   >
                     <FileText aria-hidden="true" size={16} color="var(--ink-muted)" style={{ marginRight: '12px', flexShrink: 0 }} />
-                    <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{note.title || 'Untitled Note'}</span>
+                    <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{getDisplayTitle(note)}</span>
                   </button>
                 ))
               )}

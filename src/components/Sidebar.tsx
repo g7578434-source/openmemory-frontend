@@ -3,6 +3,25 @@ import { useState, useEffect, useMemo } from 'react';
 import { Search, Settings, Folder, Plus, Sun, Moon, Inbox, Files } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+const FOLDER_GROUPS: { section: string; tags: string[] }[] = [
+  {
+    section: 'WORKSPACE',
+    tags: ['validated-ideas', 'research', 'rejected-ideas'],
+  },
+  {
+    section: 'SYSTEM',
+    tags: ['template', 'protocol'],
+  },
+];
+
+/** "rejected-ideas" → "Rejected Ideas" */
+function formatFolderName(tag: string): string {
+  return tag
+    .split('-')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 interface SidebarProps {
   notes: any[];
   activeNote: any;
@@ -43,67 +62,18 @@ export function Sidebar({
     loadFolders();
   }, [notes]);
 
-  const getFolderLabel = (tagName: string) => {
-    const known: Record<string, string> = {
-      'raw-idea': 'Raw Ideas',
-      'awaiting-test': 'Awaiting Test',
-      'validated': 'Validated',
-      'killed': 'Killed Ideas',
-      'research-log': 'Research Logs',
-      'session-log': 'Session Logs',
-      'template': 'Templates',
-      'system': 'System'
-    };
-    if (known[tagName]) return known[tagName];
-    return tagName
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-
-  const renderFolder = (label: string, tag: string, count: number) => {
-    const isActive = activeTagFilter === tag;
-
-    return (
-      <button
-        key={tag}
-        className={`sidebar-list-item ${isActive ? 'active' : ''}`}
-        onClick={() => {
-          onSelectTagFilter(tag);
-          onGoHome();
-        }}
-      >
-        <Folder aria-hidden="true" size={13} className="item-icon" />
-        <span className="item-text">{label}</span>
-        <span className="folder-count">{count}</span>
-      </button>
+  const tagMap = useMemo(() => {
+    return new Map<string, number>(
+      (folders || []).map(f => [f.name, f.note_tags?.[0]?.count ?? 0])
     );
-  };
+  }, [folders]);
 
-  const groupedFolders = useMemo(() => {
-    const byName = new Map<string, any>();
-    (folders || []).forEach(f => byName.set(f.name, f));
-
-    const groupConfig: Array<{ key: string; label: string; icon: any; tags: string[] }> = [
-      { key: 'inbox', label: 'Inbox', icon: <Inbox aria-hidden="true" size={13} className="item-icon" />, tags: ['awaiting-test', 'raw-idea', 'research-log'] },
-      { key: 'projects', label: 'Projects', icon: <Folder aria-hidden="true" size={13} className="item-icon" />, tags: ['validated', 'session-log'] },
-      { key: 'archive', label: 'Archive', icon: <Files aria-hidden="true" size={13} className="item-icon" />, tags: ['killed', 'template', 'system'] }
-    ];
-
-    return groupConfig
-      .map(g => {
-        const items = g.tags
-          .map(tagName => byName.get(tagName))
-          .filter(Boolean)
-          .map((folder: any) => ({
-            tag: folder.name,
-            label: getFolderLabel(folder.name),
-            count: folder.note_tags?.[0]?.count ?? 0
-          }));
-        return { ...g, items };
-      })
-      .filter(g => g.items.length > 0);
-  }, [folders, activeTagFilter]);
+  const otherTags = useMemo(() => {
+    const definedTags = new Set(FOLDER_GROUPS.flatMap(g => g.tags));
+    return (folders || [])
+      .map(f => f.name)
+      .filter(name => !definedTags.has(name));
+  }, [folders]);
 
   const hasAnyFolders = (folders || []).length > 0;
 
@@ -159,22 +129,8 @@ export function Sidebar({
           </div>
         ) : (
           <>
-            {groupedFolders.map(group => (
-              <div key={group.key} className="sidebar-group">
-                <div className="sidebar-group-header">
-                  {group.icon}
-                  {group.label}
-                </div>
-                <div className="sidebar-group-list">
-                  {group.items.map(item => renderFolder(item.label, item.tag, item.count))}
-                </div>
-              </div>
-            ))}
-
-            <hr className="sidebar-divider" />
-
             {/* All Notes Fallback */}
-            <div className="sidebar-folder-group">
+            <div className="sidebar-folder-group" style={{ marginBottom: '8px' }}>
               <button
                 className={`sidebar-list-item ${!activeNote && !activeTagFilter ? 'active' : ''}`}
                 onClick={() => {
@@ -187,6 +143,75 @@ export function Sidebar({
                 <span className="folder-count">{notes.length}</span>
               </button>
             </div>
+
+            <div className="sidebar-section-divider" style={{ margin: '8px 12px 12px 12px' }} />
+
+            {FOLDER_GROUPS.map(({ section, tags }, index) => {
+              const hasVisibleTag = tags.some(t => tagMap.has(t) || (tagMap.get(t) ?? 0) > 0);
+              if (!hasVisibleTag) return null;
+
+              return (
+                <div key={section}>
+                  {index > 0 && <div className="sidebar-section-divider" />}
+                  <div className="sidebar-folder-section">
+                    <span className="sidebar-section-label">{section}</span>
+                    {tags.map(tagName => {
+                      const count = tagMap.get(tagName) ?? 0;
+                      const isActive = activeTagFilter === tagName;
+                      return (
+                        <button
+                          key={tagName}
+                          className={`sidebar-folder-row ${isActive ? 'active' : ''}`}
+                          onClick={() => {
+                            onSelectTagFilter(tagName);
+                            onGoHome();
+                          }}
+                        >
+                          <span className="folder-icon">
+                            {isActive ? '▾' : '▸'}
+                          </span>
+                          <span className="folder-label">{formatFolderName(tagName)}</span>
+                          {count > 0 && (
+                            <span className="folder-count">{count}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            {otherTags.length > 0 && (
+              <>
+                <div className="sidebar-section-divider" />
+                <div className="sidebar-folder-section">
+                  <span className="sidebar-section-label">OTHER</span>
+                  {otherTags.map(tagName => {
+                    const count = tagMap.get(tagName) ?? 0;
+                    const isActive = activeTagFilter === tagName;
+                    return (
+                      <button
+                        key={tagName}
+                        className={`sidebar-folder-row ${isActive ? 'active' : ''}`}
+                        onClick={() => {
+                          onSelectTagFilter(tagName);
+                          onGoHome();
+                        }}
+                      >
+                        <span className="folder-icon">
+                          {isActive ? '▾' : '▸'}
+                        </span>
+                        <span className="folder-label">{formatFolderName(tagName)}</span>
+                        {count > 0 && (
+                          <span className="folder-count">{count}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
