@@ -1,20 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Settings, Plus, Sun, Moon, Files } from 'lucide-react';
+import { Search, Settings, Plus, Sun, Moon, Inbox, Layers, Edit2, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
-const FOLDER_GROUPS: { section: string; tags: string[] }[] = [
-  {
-    section: 'WORKSPACE',
-    tags: ['validated-ideas', 'research', 'rejected-ideas'],
-  },
-  {
-    section: 'SYSTEM',
-    tags: ['template', 'protocol'],
-  },
-];
-
-/** "rejected-ideas" → "Rejected Ideas" */
 function formatFolderName(tag: string): string {
   return tag
     .split('-')
@@ -33,6 +21,9 @@ interface SidebarProps {
   onSelectTagFilter: (tag: string | null) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  isOpen?: boolean;
+  sections: any[];
+  onSaveSections: (sections: any[]) => Promise<void>;
 }
 
 export function Sidebar({
@@ -44,10 +35,13 @@ export function Sidebar({
   activeTagFilter,
   onSelectTagFilter,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  isOpen,
+  sections,
+  onSaveSections
 }: SidebarProps) {
-
   const [folders, setFolders] = useState<any[]>([]);
+  const [isEditingSidebar, setIsEditingSidebar] = useState(false);
 
   useEffect(() => {
     async function loadFolders() {
@@ -69,174 +63,351 @@ export function Sidebar({
   }, [folders]);
 
   const otherTags = useMemo(() => {
-    const definedTags = new Set(FOLDER_GROUPS.flatMap(g => g.tags));
+    const definedTags = new Set((sections || []).flatMap(g => g.tags));
     return (folders || [])
       .map(f => f.name)
       .filter(name => !definedTags.has(name));
-  }, [folders]);
+  }, [folders, sections]);
 
-  const hasAnyFolders = (folders || []).length > 0;
+  // Sidebar Customization Handlers
+  const moveSectionUp = (index: number) => {
+    if (index === 0) return;
+    const next = [...sections];
+    const temp = next[index];
+    next[index] = next[index - 1];
+    next[index - 1] = temp;
+    onSaveSections(next);
+  };
+
+  const moveSectionDown = (index: number) => {
+    if (index === sections.length - 1) return;
+    const next = [...sections];
+    const temp = next[index];
+    next[index] = next[index + 1];
+    next[index + 1] = temp;
+    onSaveSections(next);
+  };
+
+  const addSection = () => {
+    const name = prompt("Enter new section name:");
+    if (name && name.trim()) {
+      onSaveSections([...sections, { section: name.trim().toUpperCase(), tags: [] }]);
+    }
+  };
+
+  const renameSection = (index: number, newName: string) => {
+    const next = [...sections];
+    next[index].section = newName.trim().toUpperCase();
+    onSaveSections(next);
+  };
+
+  const deleteSection = (index: number) => {
+    if (confirm("Are you sure you want to delete this section? Its tags will be moved to the OTHER list.")) {
+      onSaveSections(sections.filter((_: any, i: number) => i !== index));
+    }
+  };
+
+  const moveTagUp = (sectionIndex: number, tagIndex: number) => {
+    if (tagIndex === 0) return;
+    const next = [...sections];
+    const tags = [...next[sectionIndex].tags];
+    const temp = tags[tagIndex];
+    tags[tagIndex] = tags[tagIndex - 1];
+    tags[tagIndex - 1] = temp;
+    next[sectionIndex].tags = tags;
+    onSaveSections(next);
+  };
+
+  const moveTagDown = (sectionIndex: number, tagIndex: number) => {
+    const next = [...sections];
+    const tags = [...next[sectionIndex].tags];
+    if (tagIndex === tags.length - 1) return;
+    const temp = tags[tagIndex];
+    tags[tagIndex] = tags[tagIndex + 1];
+    tags[tagIndex + 1] = temp;
+    next[sectionIndex].tags = tags;
+    onSaveSections(next);
+  };
+
+  const addTagToSection = (sectionIndex: number) => {
+    const tagName = prompt("Enter tag name to add (e.g. 'work'):");
+    if (tagName && tagName.trim()) {
+      const cleaned = tagName.trim().toLowerCase().replace(/\s+/g, '-');
+      const next = [...sections];
+      if (!next[sectionIndex].tags.includes(cleaned)) {
+        next[sectionIndex].tags.push(cleaned);
+        onSaveSections(next);
+      }
+    }
+  };
+
+  const removeTagFromSection = (sectionIndex: number, tagIndex: number) => {
+    const next = [...sections];
+    next[sectionIndex].tags = next[sectionIndex].tags.filter((_: any, i: number) => i !== tagIndex);
+    onSaveSections(next);
+  };
+
+  const handleMoveTagToSection = (tagName: string, targetSection: string) => {
+    let next = sections.map((sec: any) => ({
+      ...sec,
+      tags: sec.tags.filter((t: string) => t !== tagName)
+    }));
+
+    if (targetSection !== 'other') {
+      next = next.map((sec: any) => {
+        if (sec.section === targetSection) {
+          if (!sec.tags.includes(tagName)) {
+            return { ...sec, tags: [...sec.tags, tagName] };
+          }
+        }
+        return sec;
+      });
+    }
+
+    onSaveSections(next);
+  };
 
   return (
-    <div className="sidebar-left">
-      {/* App Header (Name and Note Count) */}
-      <div className="profile-dropdown-container">
-        <button className="profile-dropdown-btn" style={{ cursor: 'default' }}>
-          <div className="avatar-container">
-            <span className="avatar-initial" style={{ color: 'var(--on-primary)' }}>M</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-            <span className="profile-name">OpenMemory</span>
-            <span style={{ fontSize: '11px', color: 'var(--ink-faint)', marginTop: '2px' }}>
-              {notes.length} {notes.length === 1 ? 'note' : 'notes'} saved
-            </span>
-          </div>
-        </button>
-      </div>
-
-      {/* Primary Action: Create Note */}
-      <div className="sidebar-action-container" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <button
-          className="sidebar-create-btn"
-          onClick={onNewNote}
-          style={{
-            justifyContent: 'flex-start',
-            paddingLeft: '14px',
-            color: 'var(--ink-muted)',
-            fontWeight: 400,
-            boxShadow: 'var(--shadow-sm)'
+    <div className={`sidebar-left ${isOpen ? 'open' : ''}`}>
+      {/* Brand logo & Profile section */}
+      <div style={{ padding: '8px var(--spacing-md) 16px var(--spacing-md)' }}>
+        <button 
+          onClick={() => {
+            onSelectTagFilter(null);
+            onGoHome();
           }}
+          style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink)', background: 'none', border: 'none', cursor: 'pointer' }}
         >
-          <Plus aria-hidden="true" size={14} style={{ color: 'var(--ink-faint)', marginRight: '2px' }} />
-          <span>New note...</span>
+          OpenMemory
+        </button>
+        <div style={{ fontSize: '11px', color: 'var(--ink-faint)', marginTop: '2px' }}>
+          {notes.length} notes
+        </div>
+      </div>
+
+      {/* Unified actions dock */}
+      <div style={{ padding: '0 var(--spacing-md) var(--spacing-md) var(--spacing-md)', display: 'flex', gap: '8px' }}>
+        <button
+          onClick={onNewNote}
+          style={{ flex: 1, height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', cursor: 'pointer' }}
+        >
+          <Plus size={13} />
+          <span>New note</span>
+        </button>
+        <button
+          onClick={onSearchClick}
+          style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--ink-muted)', cursor: 'pointer' }}
+          title="Search (⌘K)"
+        >
+          <Search size={13} />
         </button>
       </div>
 
-      {/* Inline Search / Ask Box */}
-      <div className="sidebar-search-container">
-        <button className="sidebar-search-box" onClick={onSearchClick}>
-          <Search aria-hidden="true" size={14} />
-          <span>Search</span>
-          <span className="search-shortcut">⌘K</span>
+      {/* Main Nav Links */}
+      <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <button
+          className={`sidebar-folder-row ${!activeNote && !activeTagFilter ? 'active' : ''}`}
+          onClick={() => {
+            onSelectTagFilter(null);
+            onGoHome();
+          }}
+          style={{ display: 'flex', alignItems: 'center', justifyItems: 'space-between', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', outline: 'none', color: (!activeNote && !activeTagFilter) ? 'var(--primary)' : 'var(--ink-secondary)', fontSize: '13px', padding: '6px 12px', borderRadius: 'var(--radius-sm)' }}
+        >
+          <Inbox size={13} style={{ marginRight: '8px', opacity: 0.7 }} />
+          <span style={{ flex: 1, textAlign: 'left' }}>Inbox</span>
+          <span style={{ fontSize: '10px', opacity: 0.5 }}>{notes.filter(n => n.status !== 'killed').length}</span>
         </button>
       </div>
 
-      {/* Folder Navigation */}
-      <div className="sidebar-folders-container" style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
-        {!hasAnyFolders ? (
-          <div className="sidebar-group-empty" style={{ padding: '16px 10px', textAlign: 'left' }}>
-            Your mind is clear. What’s on your mind?
+      {/* Folders Navigation */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px 0 8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px' }}>
+          <span className="sidebar-section-header" style={{ padding: 0 }}>Folders</span>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {isEditingSidebar && (
+              <button 
+                onClick={addSection}
+                style={{ fontSize: '11px', color: 'var(--primary)', cursor: 'pointer', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: 'var(--folder-count-bg)', fontWeight: 600 }}
+              >
+                + New Group
+              </button>
+            )}
+            <button 
+              onClick={() => setIsEditingSidebar(prev => !prev)}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--primary)', cursor: 'pointer', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--folder-count-bg)' }}
+              title={isEditingSidebar ? 'Save Changes' : 'Customize Folders'}
+            >
+              {isEditingSidebar ? <Check size={11} /> : <Edit2 size={11} />}
+              <span>{isEditingSidebar ? 'Done' : 'Edit'}</span>
+            </button>
+          </div>
+        </div>
+
+        {isEditingSidebar ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {sections.map(({ section, tags }: any, sectionIdx: number) => (
+              <div key={sectionIdx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px', border: '1px dashed var(--hairline)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--canvas-soft)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
+                  <input 
+                    type="text" 
+                    value={section} 
+                    onChange={(e) => renameSection(sectionIdx, e.target.value)}
+                    style={{ fontSize: '10px', fontWeight: 650, width: '110px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', color: 'var(--folder-section-label)', textTransform: 'uppercase', outline: 'none' }}
+                  />
+                  <div style={{ display: 'flex', gap: '2px' }}>
+                    <button onClick={() => moveSectionUp(sectionIdx)} title="Move Section Up" style={{ padding: '2px', cursor: 'pointer', fontSize: '10px' }}>▲</button>
+                    <button onClick={() => moveSectionDown(sectionIdx)} title="Move Section Down" style={{ padding: '2px', cursor: 'pointer', fontSize: '10px' }}>▼</button>
+                    <button onClick={() => addTagToSection(sectionIdx)} title="Add Folder (Tag)" style={{ padding: '2px', cursor: 'pointer', color: 'var(--primary)', fontSize: '12px', fontWeight: 'bold' }}>+</button>
+                    <button onClick={() => deleteSection(sectionIdx)} title="Delete Section" style={{ padding: '2px', cursor: 'pointer', color: 'var(--sticker-pink-text)', fontSize: '12px' }}>×</button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '8px' }}>
+                  {tags.map((tagName: string, tagIdx: number) => (
+                    <div key={tagName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0', gap: '4px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--ink-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                        {formatFolderName(tagName)}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <select
+                          value={section}
+                          onChange={(e) => handleMoveTagToSection(tagName, e.target.value)}
+                          style={{ fontSize: '10px', background: 'var(--folder-count-bg)', color: 'var(--ink-secondary)', border: '1px solid var(--border)', borderRadius: '4px', padding: '2px 4px', cursor: 'pointer', outline: 'none', maxWidth: '80px' }}
+                        >
+                          <option value="other">Unsorted</option>
+                          {sections.map((sec: any) => (
+                            <option key={sec.section} value={sec.section}>{sec.section}</option>
+                          ))}
+                        </select>
+                        <button onClick={() => moveTagUp(sectionIdx, tagIdx)} title="Move Up" style={{ fontSize: '9px', cursor: 'pointer', padding: '2px' }}>▲</button>
+                        <button onClick={() => moveTagDown(sectionIdx, tagIdx)} title="Move Down" style={{ fontSize: '9px', cursor: 'pointer', padding: '2px' }}>▼</button>
+                        <button onClick={() => removeTagFromSection(sectionIdx, tagIdx)} title="Remove Folder" style={{ fontSize: '11px', cursor: 'pointer', color: 'var(--sticker-pink-text)', padding: '2px' }}>×</button>
+                      </div>
+                    </div>
+                  ))}
+                  {tags.length === 0 && (
+                    <span style={{ fontSize: '11px', color: 'var(--ink-faint)', fontStyle: 'italic', padding: '2px 0' }}>Empty section</span>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Unsorted tags drawer in Edit Mode */}
+            {otherTags.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px', border: '1px dashed var(--hairline)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--canvas-soft)', opacity: 0.85 }}>
+                <span className="sidebar-section-header" style={{ padding: 0, fontSize: '10px', fontWeight: 650, color: 'var(--folder-section-label)' }}>UNSORTED</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '8px' }}>
+                  {otherTags.map((tagName: string) => (
+                    <div key={tagName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0', gap: '4px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--ink-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                        {formatFolderName(tagName)}
+                      </span>
+                      <select
+                        value="other"
+                        onChange={(e) => handleMoveTagToSection(tagName, e.target.value)}
+                        style={{ fontSize: '10px', background: 'var(--folder-count-bg)', color: 'var(--ink-secondary)', border: '1px solid var(--border)', borderRadius: '4px', padding: '2px 4px', cursor: 'pointer', outline: 'none', maxWidth: '80px' }}
+                      >
+                        <option value="other">Unsorted</option>
+                        {sections.map((sec: any) => (
+                          <option key={sec.section} value={sec.section}>{sec.section}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button 
+              onClick={addSection}
+              style={{ width: '100%', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', padding: '6px', fontSize: '11px', textAlign: 'center', color: 'var(--primary)', cursor: 'pointer', marginTop: '4px', fontWeight: 600 }}
+            >
+              + Add Section
+            </button>
           </div>
         ) : (
           <>
-            {/* All Notes Fallback */}
-            <div className="sidebar-folder-group" style={{ marginBottom: '8px' }}>
-              <button
-                className={`sidebar-list-item ${!activeNote && !activeTagFilter ? 'active' : ''}`}
-                onClick={() => {
-                  onSelectTagFilter(null);
-                  onGoHome();
-                }}
-              >
-                <Files aria-hidden="true" size={13} className="item-icon" />
-                <span className="item-text">All Notes</span>
-                <span className="folder-count">{notes.length}</span>
-              </button>
-            </div>
-
-            <div className="sidebar-section-divider" style={{ margin: '8px 12px 12px 12px' }} />
-
-            {FOLDER_GROUPS.map(({ section, tags }, index) => {
-              const hasVisibleTag = tags.some(t => tagMap.has(t) || (tagMap.get(t) ?? 0) > 0);
-              if (!hasVisibleTag) return null;
-
+            {sections.map(({ section, tags }: any) => {
               return (
-                <div key={section}>
-                  {index > 0 && <div className="sidebar-section-divider" />}
-                  <div className="sidebar-folder-section">
-                    <span className="sidebar-section-label">{section}</span>
-                    {tags.map(tagName => {
-                      const count = tagMap.get(tagName) ?? 0;
-                      const isActive = activeTagFilter === tagName;
-                      return (
-                        <button
-                          key={tagName}
-                          className={`sidebar-folder-row ${isActive ? 'active' : ''}`}
-                          onClick={() => {
-                            onSelectTagFilter(tagName);
-                            onGoHome();
-                          }}
-                        >
-                          <span className="folder-icon">
-                            {isActive ? '▾' : '▸'}
-                          </span>
-                          <span className="folder-label">{formatFolderName(tagName)}</span>
-                          {count > 0 && (
-                            <span className="folder-count">{count}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-
-            {otherTags.length > 0 && (
-              <>
-                <div className="sidebar-section-divider" />
-                <div className="sidebar-folder-section">
-                  <span className="sidebar-section-label">OTHER</span>
-                  {otherTags.map(tagName => {
+                <div key={section} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span className="sidebar-section-header">{section}</span>
+                  {tags.map((tagName: string) => {
                     const count = tagMap.get(tagName) ?? 0;
                     const isActive = activeTagFilter === tagName;
+
                     return (
                       <button
                         key={tagName}
-                        className={`sidebar-folder-row ${isActive ? 'active' : ''}`}
                         onClick={() => {
                           onSelectTagFilter(tagName);
                           onGoHome();
                         }}
+                        className={`sidebar-folder-row ${isActive ? 'active' : ''}`}
+                        style={{ display: 'flex', alignItems: 'center', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: isActive ? 'var(--primary)' : 'var(--ink-secondary)', fontSize: '13px', padding: '5px 12px', borderRadius: 'var(--radius-sm)' }}
                       >
-                        <span className="folder-icon">
-                          {isActive ? '▾' : '▸'}
+                        <Layers size={11} style={{ marginRight: '8px', opacity: 0.5 }} />
+                        <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {formatFolderName(tagName)}
                         </span>
-                        <span className="folder-label">{formatFolderName(tagName)}</span>
-                        {count > 0 && (
-                          <span className="folder-count">{count}</span>
-                        )}
+                        {count > 0 && <span style={{ fontSize: '10px', opacity: 0.5 }}>{count}</span>}
                       </button>
                     );
                   })}
+                  {tags.length === 0 && (
+                    <span style={{ fontSize: '11px', color: 'var(--ink-faint)', fontStyle: 'italic', padding: '4px 12px' }}>Empty group</span>
+                  )}
                 </div>
-              </>
-            )}
+              );
+            })}
           </>
+        )}
+
+        {otherTags.length > 0 && !isEditingSidebar && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span className="sidebar-section-header">OTHER</span>
+            {otherTags.map(tagName => {
+              const count = tagMap.get(tagName) ?? 0;
+              const isActive = activeTagFilter === tagName;
+
+              return (
+                <button
+                  key={tagName}
+                  onClick={() => {
+                    onSelectTagFilter(tagName);
+                    onGoHome();
+                  }}
+                  className={`sidebar-folder-row ${isActive ? 'active' : ''}`}
+                  style={{ display: 'flex', alignItems: 'center', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: isActive ? 'var(--primary)' : 'var(--ink-secondary)', fontSize: '13px', padding: '5px 12px', borderRadius: 'var(--radius-sm)' }}
+                >
+                  <Layers size={11} style={{ marginRight: '8px', opacity: 0.5 }} />
+                  <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {formatFolderName(tagName)}
+                  </span>
+                  {count > 0 && <span style={{ fontSize: '10px', opacity: 0.5 }}>{count}</span>}
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
 
-      {/* Settings & Theme Toggle */}
-      <div className="sidebar-footer" style={{ borderTop: '1px solid var(--hairline)', padding: '12px 8px 0 8px' }}>
-        <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
-          <button
-            className="nav-item settings-nav-btn"
-            style={{ flex: 1, margin: 0, justifyContent: 'flex-start', padding: '8px 12px' }}
-            onClick={() => alert("Settings panel coming soon!")}
-          >
-            <Settings aria-hidden="true" size={15} style={{ marginRight: '8px' }} />
-            <span>Settings</span>
-          </button>
+      {/* Footer Settings & Theme Toggle */}
+      <div style={{ borderTop: '1px solid var(--border)', padding: '12px var(--spacing-sm) 0 var(--spacing-sm)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <button
+          onClick={() => alert("Settings panel coming soon!")}
+          style={{ flex: 1, height: '32px', display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', color: 'var(--ink-muted)', paddingLeft: '8px', fontSize: '12px', cursor: 'pointer' }}
+        >
+          <Settings size={13} />
+          <span>Settings</span>
+        </button>
 
-          <button
-            className="theme-toggle-btn"
-            onClick={onToggleTheme}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {theme === 'dark' ? <Sun aria-hidden="true" size={15} /> : <Moon aria-hidden="true" size={15} />}
-          </button>
-        </div>
+        <button
+          onClick={onToggleTheme}
+          style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--ink-muted)', cursor: 'pointer' }}
+          title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+        >
+          {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+        </button>
       </div>
     </div>
   );

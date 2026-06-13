@@ -1,15 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { NoteList } from './components/NoteList';
+import { NotesFeed } from './components/NotesFeed';
 import { NoteEditor } from './components/NoteEditor';
-import { PipelineDashboard } from './components/PipelineDashboard';
 import { CommandPalette } from './components/CommandPalette';
 import { supabase } from './lib/supabase';
-import { AnimatePresence } from 'framer-motion';
-import { Home, X, Plus } from 'lucide-react';
+import { X, Menu, Search, ArrowLeft } from 'lucide-react';
 import { getDisplayTitle } from './lib/noteTitleHelper';
+import { getSidebarSections, saveSidebarSections, DEFAULT_FOLDER_GROUPS } from './lib/userPreferences';
 
 function App() {
   const [notes, setNotes] = useState<any[]>([]);
@@ -20,10 +17,12 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [capsule, setCapsule] = useState<any | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [sidebarSections, setSidebarSections] = useState<any[]>(DEFAULT_FOLDER_GROUPS);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved;
-    return 'dark'; // Default to premium dark mode
+    return 'light'; // Default to premium light mode
   });
 
   // Apply theme to document element
@@ -37,6 +36,7 @@ function App() {
     const existingDraft = openNotes.find(n => n.id.startsWith('draft-'));
     if (existingDraft) {
       setActiveTab(existingDraft.id);
+      setIsSidebarOpen(false);
       return;
     }
 
@@ -52,6 +52,7 @@ function App() {
     setNotes(prev => [newDraft, ...prev]);
     setOpenNotes(prev => [...prev, newDraft]);
     setActiveTab(draftId);
+    setIsSidebarOpen(false);
   };
 
   const toggleTheme = () => {
@@ -84,27 +85,10 @@ function App() {
         return;
       }
 
-      // New Note (N key when not typing)
-      if (e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const activeEl = document.activeElement;
-        const isEditing = activeEl && (
-          activeEl.tagName === 'INPUT' ||
-          activeEl.tagName === 'TEXTAREA' ||
-          activeEl.hasAttribute('contenteditable') ||
-          activeEl.closest('.ProseMirror')
-        );
-        if (!isEditing) {
-          e.preventDefault();
-          handleNewNote();
-          return;
-        }
-      }
-
-      // Escape to discard empty draft
+      // Escape to close editor modal or discard empty draft
       if (e.key === 'Escape') {
-        const activeEl = document.activeElement;
-        const isEditorActive = activeEl && activeEl.closest('.ProseMirror');
-        if (isEditorActive && activeTab.startsWith('draft-')) {
+        
+        if (activeTab.startsWith('draft-')) {
           const draftNote = openNotes.find(n => n.id === activeTab);
           const isEmpty = !draftNote?.title?.trim() && (!draftNote?.content || draftNote.content === '' || draftNote.content === '<p></p>');
           if (isEmpty) {
@@ -113,7 +97,39 @@ function App() {
             setNotes(prev => prev.filter(n => n.id !== activeTab));
             setOpenNotes(prev => prev.filter(n => n.id !== activeTab));
             setActiveTab('home');
+            return;
           }
+        }
+        
+        if (activeTab !== 'home') {
+          e.preventDefault();
+          setActiveTab('home');
+          return;
+        }
+      }
+
+      // Keyboard navigation shortcuts when not typing
+      const activeEl = document.activeElement;
+      const isEditing = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.hasAttribute('contenteditable') ||
+        activeEl.closest('.ProseMirror')
+      );
+
+      if (!isEditing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // New Note (N key)
+        if (e.key.toLowerCase() === 'n') {
+          e.preventDefault();
+          handleNewNote();
+          return;
+        }
+
+        // Jump to Graveyard (G key)
+        if (e.key.toLowerCase() === 'g') {
+          e.preventDefault();
+          document.querySelector('.graveyard-section')?.scrollIntoView({ behavior: 'smooth' });
+          return;
         }
       }
     };
@@ -230,13 +246,26 @@ function App() {
   useEffect(() => {
     fetchNotes();
     fetchCapsule();
+
+    // Load custom sidebar folders from Supabase
+    async function loadSidebarPrefs() {
+      const sections = await getSidebarSections();
+      setSidebarSections(sections);
+    }
+    loadSidebarPrefs();
   }, []);
+
+  const handleSaveSidebarSections = async (newSections: any[]) => {
+    setSidebarSections(newSections);
+    await saveSidebarSections(newSections);
+  };
 
   const handleSelectNote = (note: any) => {
     if (!openNotes.some(n => n.id === note.id)) {
       setOpenNotes([...openNotes, note]);
     }
     setActiveTab(note.id);
+    setIsSidebarOpen(false);
   };
 
   const handleDeleteNote = async (id: string) => {
@@ -333,6 +362,22 @@ function App() {
         notes={notes}
         onSelectNote={handleSelectNote}
       />
+
+      {/* Mobile top bar */}
+      <div className="mobile-header">
+        <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)} aria-label="Open sidebar">
+          <Menu size={18} />
+        </button>
+        <span className="mobile-title">
+          {activeTagFilter ? activeTagFilter : 'Inbox'}
+        </span>
+        <button className="mobile-search-btn" onClick={() => setIsCommandPaletteOpen(true)} aria-label="Search">
+          <Search size={16} />
+        </button>
+      </div>
+
+      {isSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)} />}
+
       <Sidebar
         notes={notes}
         activeNote={currentActiveNote}
@@ -344,89 +389,93 @@ function App() {
         onSelectTagFilter={setActiveTagFilter}
         theme={theme}
         onToggleTheme={toggleTheme}
+        isOpen={isSidebarOpen}
+        sections={sidebarSections}
+        onSaveSections={handleSaveSidebarSections}
       />
 
-      <div className="center-pane">
-        {/* Navigation Tabs Bar */}
-        <div className="editor-tabs-bar">
-          <button
-            className={`editor-tab ${activeTab === 'home' ? 'active' : ''}`}
-            onClick={() => setActiveTab('home')}
-          >
-            <Home aria-hidden="true" size={13} style={{ marginRight: '6px' }} />
-            <span>Home</span>
-          </button>
+      <div className={`center-pane ${currentActiveNote ? 'has-active-note' : ''}`}>
+        {/* Middle Column: Chronological Notes Feed */}
+        {loading && notes.length === 0 ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-faint)', fontSize: '13px' }}>
+            <span>Loading workspace...</span>
+          </div>
+        ) : (
+          <NotesFeed
+            notes={filteredNotes}
+            activeNote={currentActiveNote}
+            onSelectNote={handleSelectNote}
+            activeTagFilter={activeTagFilter}
+            capsule={capsule}
+          />
+        )}
 
-          {openNotes.map(note => (
-            <div
-              key={note.id}
-              className={`editor-tab ${activeTab === note.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(note.id)}
-            >
-              <span className="tab-title">{getDisplayTitle(note)}</span>
+        {/* Right Column: Note Editor in Split View */}
+        {currentActiveNote ? (
+          <div className="split-editor-column">
+            {/* Header tab bar inside editor */}
+            <div className="editor-tabs-bar" style={{ borderBottom: '1px solid var(--border)', paddingRight: '8px' }}>
               <button
-                className="tab-close-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCloseTab(note.id);
-                }}
-                aria-label="Close tab"
+                className="editor-back-btn"
+                onClick={() => setActiveTab('home')}
+                title="Back to Feed"
               >
-                <X aria-hidden="true" size={11} />
+                <ArrowLeft size={14} style={{ marginRight: '4px' }} />
+                <span>Back</span>
+              </button>
+              <div style={{ display: 'flex', flex: 1, overflowX: 'auto' }}>
+                {openNotes.map(note => (
+                  <div
+                    key={note.id}
+                    className={`editor-tab ${activeTab === note.id ? 'active' : ''}`}
+                    onClick={() => setActiveTab(note.id)}
+                  >
+                    <span className="tab-title">{getDisplayTitle(note)}</span>
+                    <button
+                      className="tab-close-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloseTab(note.id);
+                      }}
+                      aria-label="Close tab"
+                    >
+                      <X aria-hidden="true" size={11} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              
+              <button
+                className="editor-tab"
+                style={{ border: 'none', background: 'transparent', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => setActiveTab('home')}
+                title="Close Editor"
+              >
+                <X size={14} />
               </button>
             </div>
-          ))}
-        </div>
 
-        <div className="pane-content">
-          {loading && notes.length === 0 ? (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <p className="body-md">Loading…</p>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <NoteEditor
+                key={currentActiveNote.id}
+                note={currentActiveNote}
+                onNoteUpdated={handleNoteUpdated}
+                onDeleteNote={handleDeleteNote}
+                capsule={capsule}
+                onSaveCapsule={saveCapsule}
+              />
             </div>
-          ) : (
-            <AnimatePresence mode="wait">
-              {activeTab === 'home' ? (
-                <NoteList
-                  key="list"
-                  notes={filteredNotes}
-                  onSelectNote={handleSelectNote}
-                  onNewNote={handleNewNote}
-                  activeTagFilter={activeTagFilter}
-                  onClearTagFilter={() => setActiveTagFilter(null)}
-                  searchQuery={searchQuery}
-                />
-              ) : activeTab === 'pipeline' ? (
-                <PipelineDashboard
-                  key="pipeline"
-                  capsule={capsule}
-                  onSaveCapsule={saveCapsule}
-                />
-              ) : (
-                <NoteEditor
-                  key={currentActiveNote?.id}
-                  note={currentActiveNote}
-                  onNoteUpdated={handleNoteUpdated}
-                  onDeleteNote={handleDeleteNote}
-                  capsule={capsule}
-                  onSaveCapsule={saveCapsule}
-                />
-              )}
-            </AnimatePresence>
-          )}
-
-          {/* Floating Action Button (New Note) */}
-          {!loading && (
-            <button
-              className="fab-new-note"
-              onClick={handleNewNote}
-              aria-label="New Note"
-              title="New Note"
-            >
-              <Plus aria-hidden="true" size={18} />
-            </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          /* Empty state when no note is open */
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-faint)', padding: '32px' }}>
+            <span style={{ fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace' }}>No document selected</span>
+            <span style={{ fontSize: '11px', marginTop: '6px' }}>Select a note from the feed or press N to compose.</span>
+          </div>
+        )}
       </div>
+
+
 
       {/* Related Notes panel removed (per screenshot update) */}
     </div>
