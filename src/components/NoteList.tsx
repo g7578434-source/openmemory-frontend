@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, X, Hash, FileText } from 'lucide-react';
 
@@ -226,6 +226,17 @@ export function NoteList({
             initial="hidden"
             animate="visible"
           >
+            {/* New note — first row, always visible */}
+            <button className="notelist-new-btn" onClick={onNewNote}>
+              <Plus size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+              New note
+            </button>
+
+            {/* Date group label */}
+            {filteredNotes.length > 0 && (
+              <div className="note-group-label">Recent</div>
+            )}
+
             <AnimatePresence>
               {filteredNotes.map((note) => {
                 const rawPreview = stripHtml(note.content);
@@ -246,40 +257,41 @@ export function NoteList({
                     onKeyDown={(e) => e.key === 'Enter' && onSelectNote(note)}
                     aria-label={`Open note: ${note.title || 'Untitled Note'}`}
                   >
-                    <div className="note-card-title">
-                      <Highlight text={note.title || 'Untitled Note'} query={searchQuery} />
+                    {/* Document icon */}
+                    <div className="note-card-icon">
+                      <FileText size={14} strokeWidth={1.8} />
                     </div>
-                    {rawPreview && (
-                      <div className="note-card-preview">
-                        <Highlight
-                          text={rawPreview.slice(0, 120)}
-                          query={searchQuery}
-                        />
+
+                    {/* Text body */}
+                    <div className="note-card-body">
+                      <div className="note-card-top">
+                        <span className="note-card-title">
+                          <Highlight text={note.title || 'Untitled Note'} query={searchQuery} />
+                        </span>
+                        <span className="note-card-time">{formatTime(note.updated_at)}</span>
                       </div>
-                    )}
-                    <div className="note-card-footer">
-                      <div className="note-card-tags">
-                        {tags.slice(0, 3).map((tag) => (
-                          <span
-                            key={tag}
-                            className={`note-tag-pill ${getTagColor(tag)}`}
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                      <span className="note-card-time">{formatTime(note.updated_at)}</span>
+
+                      {rawPreview && (
+                        <div className="note-card-preview">
+                          <Highlight text={rawPreview.slice(0, 90)} query={searchQuery} />
+                        </div>
+                      )}
+
+                      {tags.length > 0 && (
+                        <div className="note-card-tags">
+                          {tags.slice(0, 3).map((tag) => (
+                            <span key={tag} className="note-tag-pill">
+                              <Hash size={9} style={{ display: 'inline', marginRight: '2px' }} />
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 );
               })}
             </AnimatePresence>
-
-            {/* New note shortcut at bottom of list */}
-            <button className="notelist-new-btn" onClick={onNewNote}>
-              <Plus size={14} />
-              New note
-            </button>
           </motion.div>
         )}
       </div>

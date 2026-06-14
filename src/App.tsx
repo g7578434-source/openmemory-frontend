@@ -132,13 +132,13 @@ function App() {
       {!isSupabaseConfigured && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-          background: 'var(--accent)', color: '#fff',
-          padding: '8px 16px', fontSize: '13px', fontWeight: 500,
+          background: 'var(--ink-1)', color: 'var(--surface-1)',
+          padding: '7px 16px', fontSize: '12px', fontWeight: 500,
           display: 'flex', alignItems: 'center', gap: '8px',
-          justifyContent: 'center',
+          justifyContent: 'center', letterSpacing: '0.01em',
         }}>
-          <AlertCircle size={14} />
-          Add <strong>VITE_SUPABASE_URL</strong> and <strong>VITE_SUPABASE_KEY</strong> to your environment variables to connect your database.
+          <AlertCircle size={13} />
+          Add <strong>VITE_SUPABASE_URL</strong> and <strong>VITE_SUPABASE_KEY</strong> to connect your database.
         </div>
       )}
       <CommandPalette
@@ -178,8 +178,7 @@ function App() {
                 style={{
                   width: 'var(--notelist-w)',
                   background: 'var(--surface-1)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--r-xl)',
+                  borderRight: '1px solid var(--border)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
