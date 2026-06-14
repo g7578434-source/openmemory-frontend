@@ -1,4 +1,5 @@
-import { Home, Search, Settings, Pin, FileText, Folder, Plus, Sun, Moon } from 'lucide-react';
+import { Home, Search, Settings, Plus, Sun, Moon, FileText } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface SidebarProps {
   notes: any[];
@@ -11,182 +12,116 @@ interface SidebarProps {
   onSelectTagFilter: (tag: string | null) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  activeView: 'home' | 'editor';
 }
 
-export function Sidebar({ 
-  notes, 
-  activeNote, 
-  onSelectNote, 
-  onNewNote, 
-  onGoHome, 
+const NAV_ITEMS = [
+  { id: 'home', icon: Home, label: 'All Notes' },
+  { id: 'search', icon: Search, label: 'Search  ⌘K' },
+];
+
+export function Sidebar({
+  notes,
+  activeNote,
+  onSelectNote,
+  onNewNote,
+  onGoHome,
   onSearchClick,
   activeTagFilter,
   onSelectTagFilter,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  activeView,
 }: SidebarProps) {
-  // Extract top 5 notes for the recent list
-  const recentNotes = notes.slice(0, 5);
 
-  // Extract unique tags/collections from notes
-  const collections = Array.from(
-    new Set(
-      notes
-        .flatMap((note) => note.note_tags?.map((nt: any) => nt.tags?.name))
-        .filter(Boolean)
-    )
-  ).slice(0, 5);
+  const handleNavClick = (id: string) => {
+    if (id === 'home') {
+      onSelectTagFilter(null);
+      onGoHome();
+    } else if (id === 'search') {
+      onSearchClick();
+    }
+  };
 
   return (
-    <div className="sidebar-left">
-      {/* App Header (Name and Note Count) */}
-      <div className="profile-dropdown-container">
-        <button className="profile-dropdown-btn" style={{ cursor: 'default' }}>
-          <div className="avatar-container" style={{ backgroundColor: 'var(--primary)' }}>
-            <span className="avatar-initial" style={{ color: 'var(--on-primary)' }}>M</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-            <span className="profile-name" style={{ fontSize: '14px', lineHeight: 1.2 }}>OpenMemory</span>
-            <span style={{ fontSize: '11px', color: 'var(--ink-faint)', marginTop: '2px' }}>
-              {notes.length} {notes.length === 1 ? 'note' : 'notes'} saved
-            </span>
-          </div>
-        </button>
+    <aside className="sidebar-rail" role="navigation" aria-label="Main navigation">
+      {/* Logo mark */}
+      <div className="rail-logo" title="OpenMemory">
+        <span className="rail-logo-letter">M</span>
       </div>
 
-      {/* Primary Action: Create Note */}
-      <div className="sidebar-action-container">
-        <button className="sidebar-create-btn" onClick={onNewNote}>
-          <Plus size={16} />
-          <span>Create Note</span>
-        </button>
-      </div>
+      {/* New note */}
+      <motion.button
+        className="rail-btn"
+        onClick={onNewNote}
+        whileTap={{ scale: 0.92 }}
+        title="New note"
+        aria-label="Create new note"
+      >
+        <Plus size={17} strokeWidth={2.2} />
+        <span className="rail-btn-tooltip">New note</span>
+      </motion.button>
 
-      {/* Inline Search / Ask Box */}
-      <div className="sidebar-search-container">
-        <button className="sidebar-search-box" onClick={onSearchClick}>
-          <Search size={14} />
-          <span>Search or ask your Mem</span>
-          <span className="search-shortcut">⌘K</span>
-        </button>
-      </div>
+      <div className="rail-divider" />
 
-      {/* Navigation Links */}
-      <div className="sidebar-nav-section">
-        <button 
-          className={`nav-item ${!activeNote && !activeTagFilter ? 'active' : ''}`} 
+      {/* Nav buttons */}
+      {NAV_ITEMS.map(({ id, icon: Icon, label }) => (
+        <motion.button
+          key={id}
+          className={`rail-btn ${
+            id === 'home' && activeView === 'home' && !activeNote ? 'active' : ''
+          }`}
+          onClick={() => handleNavClick(id)}
+          whileTap={{ scale: 0.92 }}
+          aria-label={label}
+        >
+          <Icon size={17} strokeWidth={1.8} />
+          <span className="rail-btn-tooltip">{label}</span>
+        </motion.button>
+      ))}
+
+      <div className="rail-divider" />
+
+      {/* Recent notes as icon shortcuts */}
+      {notes.slice(0, 5).map((note) => (
+        <motion.button
+          key={note.id}
+          className={`rail-btn ${activeNote?.id === note.id ? 'active' : ''}`}
           onClick={() => {
             onSelectTagFilter(null);
-            onGoHome();
+            onSelectNote(note);
           }}
+          whileTap={{ scale: 0.92 }}
+          aria-label={note.title || 'Untitled Note'}
         >
-          <Home size={15} />
-          <span>Home</span>
-        </button>
-      </div>
+          <FileText size={15} strokeWidth={1.8} />
+          <span className="rail-btn-tooltip">{note.title || 'Untitled Note'}</span>
+        </motion.button>
+      ))}
 
-      {/* Pinned Section */}
-      <div className="sidebar-group">
-        <div className="sidebar-group-header">
-          <Pin size={12} />
-          <span>Pinned</span>
-        </div>
-        <div className="sidebar-group-empty">
-          Notes and collections appear here
-        </div>
-      </div>
+      <div className="rail-spacer" />
 
-      {/* Recent Notes Section */}
-      <div className="sidebar-group">
-        <div className="sidebar-group-header">
-          <FileText size={12} />
-          <span>Notes</span>
-        </div>
-        <div className="sidebar-group-list">
-          {recentNotes.length === 0 ? (
-            <div className="sidebar-group-empty">No recent notes</div>
-          ) : (
-            recentNotes.map((note) => (
-              <button
-                key={note.id}
-                className={`sidebar-list-item ${activeNote?.id === note.id ? 'active' : ''}`}
-                onClick={() => {
-                  onSelectTagFilter(null);
-                  onSelectNote(note);
-                }}
-              >
-                <FileText size={13} className="item-icon" />
-                <span className="item-text">{note.title || 'Untitled Note'}</span>
-              </button>
-            ))
-          )}
-          {notes.length > 5 && (
-            <button 
-              className="sidebar-see-all-btn" 
-              onClick={() => {
-                onSelectTagFilter(null);
-                onGoHome();
-              }}
-            >
-              See all
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Theme toggle */}
+      <motion.button
+        className="rail-btn"
+        onClick={onToggleTheme}
+        whileTap={{ scale: 0.92 }}
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {theme === 'dark' ? <Sun size={16} strokeWidth={1.8} /> : <Moon size={16} strokeWidth={1.8} />}
+        <span className="rail-btn-tooltip">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+      </motion.button>
 
-      {/* Collections Section */}
-      <div className="sidebar-group">
-        <div className="sidebar-group-header">
-          <Folder size={12} />
-          <span>Collections</span>
-        </div>
-        <div className="sidebar-group-list">
-          {collections.length === 0 ? (
-            <div className="sidebar-group-empty">No collections yet</div>
-          ) : (
-            collections.map((tag: any) => (
-              <button
-                key={tag}
-                className={`sidebar-list-item ${activeTagFilter === tag ? 'active' : ''}`}
-                onClick={() => {
-                  onSelectTagFilter(tag);
-                  onGoHome();
-                }}
-              >
-                <Folder size={13} className="item-icon" />
-                <span className="item-text">#{tag}</span>
-              </button>
-            ))
-          )}
-          {collections.length > 0 && (
-            <button className="sidebar-see-all-btn" onClick={() => {}}>
-              See all
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Settings & Theme Toggle */}
-      <div className="sidebar-footer" style={{ borderTop: '1px solid var(--hairline)', padding: '12px 8px 0 8px' }}>
-        <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
-          <button 
-            className="nav-item settings-nav-btn" 
-            style={{ flex: 1, margin: 0, justifyContent: 'flex-start', padding: '8px 12px' }} 
-            onClick={() => alert("Settings panel coming soon!")}
-          >
-            <Settings size={15} style={{ marginRight: '8px' }} />
-            <span>Settings</span>
-          </button>
-          
-          <button 
-            className="theme-toggle-btn" 
-            onClick={onToggleTheme} 
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-        </div>
-      </div>
-    </div>
+      {/* Settings */}
+      <motion.button
+        className="rail-btn"
+        onClick={() => {}}
+        whileTap={{ scale: 0.92 }}
+        aria-label="Settings"
+      >
+        <Settings size={16} strokeWidth={1.8} />
+        <span className="rail-btn-tooltip">Settings</span>
+      </motion.button>
+    </aside>
   );
 }

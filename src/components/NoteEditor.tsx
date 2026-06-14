@@ -1,185 +1,224 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Bold, Italic, List, Sparkles, Trash2 } from 'lucide-react';
+import { Bold, Italic, List, Trash2, CheckSquare, Hash, Sparkles, Pilcrow } from 'lucide-react';
+import { getTagColor } from './NoteList';
 
-const getBadgeColor = (tagName: string) => {
-  const colors = ['badge-sky', 'badge-purple', 'badge-pink', 'badge-teal', 'badge-orange'];
-  return colors[tagName.length % colors.length];
-};
+interface NoteEditorProps {
+  note: any;
+  onNoteUpdated: () => void;
+  onDeleteNote: (id: string) => void;
+}
 
-export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: any) {
+export function NoteEditor({ note, onNoteUpdated, onDeleteNote }: NoteEditorProps) {
   const [title, setTitle] = useState(note?.title || '');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize Tiptap Editor
   const editor = useEditor({
     extensions: [
       StarterKit,
       Placeholder.configure({
-        placeholder: 'Press / for commands, or start typing...',
+        placeholder: 'Start writing, or press / for commands...',
       }),
     ],
     content: note?.content || '',
     onUpdate: ({ editor }) => {
-      handleSaveContent(editor.getHTML());
+      debouncedSaveContent(editor.getHTML());
     },
   });
 
+  // Sync state when note changes
   useEffect(() => {
     setTitle(note?.title || '');
     setConfirmDelete(false);
     if (editor && note?.content !== editor.getHTML()) {
-      editor.commands.setContent(note?.content || '');
+      editor.commands.setContent(note?.content || '', false);
     }
-  }, [note, editor]);
+  }, [note?.id]);
 
-  // Debounced save for content
-  const handleSaveContent = async (htmlContent: string) => {
-    if (!note?.id) return;
-    setSaving(true);
-    await supabase
-      .from('notes')
-      .update({ content: htmlContent })
-      .eq('id', note.id);
-    setSaving(false);
+  // Auto-resize textarea
+  useEffect(() => {
+    const ta = titleRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  }, [title]);
+
+  const debouncedSaveContent = (html: string) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      if (!note?.id || !isSupabaseConfigured) return;
+      setSaving(true);
+      await supabase.from('notes').update({ content: html }).eq('id', note.id);
+      setSaving(false);
+    }, 600);
   };
 
-  // Immediate save for title
   const handleSaveTitle = async () => {
-    if (!note?.id) return;
+    if (!note?.id || !isSupabaseConfigured) return;
     setSaving(true);
-    await supabase
-      .from('notes')
-      .update({ title })
-      .eq('id', note.id);
+    await supabase.from('notes').update({ title }).eq('id', note.id);
     setSaving(false);
-    if (onNoteUpdated) onNoteUpdated();
+    onNoteUpdated();
+  };
+
+  const tags: string[] = note?.note_tags
+    ?.filter((nt: any) => nt.tags?.name)
+    .map((nt: any) => nt.tags.name) || [];
+
+  const paneVariants = {
+    hidden: { opacity: 0, x: 16 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] } },
+    exit:   { opacity: 0, x: -12, transition: { duration: 0.18 } },
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 10 }}
-      transition={{ duration: 0.15 }}
-      className="note-editor-container"
+    <motion.div
+      className="editor-pane"
+      variants={paneVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
     >
-      <div className="note-editor-content-wrapper">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginLeft: 'auto' }}>
-            <div className="eyebrow" style={{ color: 'var(--ink-faint)' }}>
-              {saving ? 'Saving...' : 'All changes saved'}
-            </div>
+      {/* Toolbar */}
+      <div className="editor-toolbar">
+        <div className="editor-toolbar-left" />
+
+        <div className="editor-toolbar-right">
+          <span className="toolbar-save-status">
+            {saving ? 'Saving…' : 'Saved'}
+          </span>
+
+          <AnimatePresence mode="wait">
             {confirmDelete ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 500 }}>Confirm delete?</span>
-                <button 
-                  onClick={() => {
-                    console.log("Delete confirmed. ID:", note.id);
-                    onDeleteNote(note.id);
-                    setConfirmDelete(false);
-                  }}
-                  className="delete-note-btn"
-                  style={{ color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '4px 8px', fontSize: '12px', borderRadius: '4px' }}
+              <motion.div
+                key="confirm"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.12 }}
+                className="confirm-delete-row"
+              >
+                <span className="confirm-delete-label">Delete this note?</span>
+                <button
+                  className="btn-danger"
+                  onClick={() => { onDeleteNote(note.id); setConfirmDelete(false); }}
                 >
-                  Yes, delete
+                  Delete
                 </button>
-                <button 
+                <button
+                  className="btn-ghost"
                   onClick={() => setConfirmDelete(false)}
-                  style={{ fontSize: '12px', color: 'var(--ink-muted)', cursor: 'pointer', padding: '4px 8px' }}
                 >
                   Cancel
                 </button>
-              </div>
+              </motion.div>
             ) : (
-              <button 
-                onClick={() => {
-                  console.log("Delete clicked. Current note object:", note);
-                  if (!note || !note.id) {
-                    alert("Error: Note ID is missing. Cannot delete.");
-                    return;
-                  }
-                  setConfirmDelete(true);
-                }}
-                className="delete-note-btn"
-                title="Delete Note"
+              <motion.button
+                key="trash"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="toolbar-btn danger"
+                onClick={() => setConfirmDelete(true)}
+                title="Delete note"
+                aria-label="Delete note"
               >
-                <Trash2 size={16} />
-              </button>
+                <Trash2 size={14} />
+                Delete
+              </motion.button>
             )}
-          </div>
+          </AnimatePresence>
         </div>
+      </div>
 
-        <input 
-          type="text" 
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={handleSaveTitle}
-          placeholder="Untitled Note"
-          style={{
-            width: '100%',
-            fontSize: '3em',
-            fontWeight: 700,
-            border: 'none',
-            outline: 'none',
-            backgroundColor: 'transparent',
-            marginBottom: 'var(--spacing-lg)',
-            color: 'var(--ink)',
-            lineHeight: 1.1
-          }}
-        />
-        
-        {/* Tag Display */}
-        {note.note_tags && note.note_tags.length > 0 && (
-          <div style={{ marginBottom: 'var(--spacing-md)' }}>
-            {note.note_tags.map((nt: any, idx: number) => {
-              if (!nt.tags) return null;
-              return (
-                <span key={idx} className={`badge-pill ${getBadgeColor(nt.tags.name)}`}>
-                  #{nt.tags.name}
+      {/* Editor scroll area */}
+      <div className="editor-scroll">
+        <div className="editor-content-area">
+          {/* Title */}
+          <textarea
+            ref={titleRef}
+            className="editor-title-input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={handleSaveTitle}
+            placeholder="Untitled"
+            rows={1}
+            aria-label="Note title"
+          />
+
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="editor-tags-row">
+              {tags.map((tag) => (
+                <span key={tag} className={`note-tag-pill ${getTagColor(tag)}`}>
+                  <Hash size={10} style={{ display: 'inline', marginRight: '3px' }} />
+                  {tag}
                 </span>
-              );
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
 
-        {editor && (
-          <BubbleMenu editor={editor} className="bubble-menu-container">
-            <button
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              className={`bubble-menu-btn ${editor.isActive('bold') ? 'active' : ''}`}
-            >
-              <Bold size={16} />
-            </button>
-            <button
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              className={`bubble-menu-btn ${editor.isActive('italic') ? 'active' : ''}`}
-            >
-              <Italic size={16} />
-            </button>
-            <button
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
-              className={`bubble-menu-btn ${editor.isActive('bulletList') ? 'active' : ''}`}
-            >
-              <List size={16} />
-            </button>
-            <button
-              onClick={() => alert("AI Cleanup triggered (Placeholder)")}
-              className="bubble-menu-btn"
-              style={{ color: 'var(--sticker-purple-text)' }}
-            >
-              <Sparkles size={16} style={{ marginRight: '4px' }} /> Clean Up
-            </button>
-          </BubbleMenu>
-        )}
+          {/* Bubble Menu */}
+          {editor && (
+            <BubbleMenu editor={editor} className="bubble-menu-container">
+              <button
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                className={`bubble-menu-btn ${editor.isActive('bold') ? 'active' : ''}`}
+                title="Bold"
+              >
+                <Bold size={14} />
+              </button>
+              <button
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                className={`bubble-menu-btn ${editor.isActive('italic') ? 'active' : ''}`}
+                title="Italic"
+              >
+                <Italic size={14} />
+              </button>
+              <button
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                className={`bubble-menu-btn ${editor.isActive('bulletList') ? 'active' : ''}`}
+                title="Bullet list"
+              >
+                <List size={14} />
+              </button>
+              <button
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                className={`bubble-menu-btn ${editor.isActive('orderedList') ? 'active' : ''}`}
+                title="Ordered list"
+              >
+                <Pilcrow size={14} />
+              </button>
+              <button
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                className={`bubble-menu-btn ${editor.isActive('blockquote') ? 'active' : ''}`}
+                title="Block quote"
+              >
+                <CheckSquare size={14} />
+              </button>
+              <div style={{ width: '1px', background: 'var(--border)', margin: '4px 2px' }} />
+              <button
+                className="bubble-menu-btn"
+                style={{ color: 'var(--accent)', gap: '4px', fontSize: '12px' }}
+                onClick={() => {}}
+                title="AI cleanup"
+              >
+                <Sparkles size={13} />
+                Clean up
+              </button>
+            </BubbleMenu>
+          )}
 
-        <EditorContent editor={editor} />
+          <EditorContent editor={editor} />
+        </div>
       </div>
     </motion.div>
   );
