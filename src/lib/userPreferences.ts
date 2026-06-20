@@ -40,7 +40,8 @@ export async function getSidebarSections(): Promise<any[]> {
       // Keep localStorage in sync with database if DB works
       try {
         localStorage.setItem('sidebar_sections', JSON.stringify(data.value));
-      } catch {}
+      } catch { // ignore localStorage errors
+      }
       return data.value as any[];
     }
   } catch (err) {

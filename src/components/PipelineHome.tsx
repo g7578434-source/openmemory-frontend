@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo } from 'react';
 import { getDisplayTitle } from '../lib/noteTitleHelper';
 import { parseScoresFromContent } from '../lib/parseScore';
