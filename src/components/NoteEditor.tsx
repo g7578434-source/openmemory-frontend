@@ -21,13 +21,13 @@ import { ScoringForm } from './ScoringForm';
 
 marked.use({ gfm: true, breaks: false })
 
-function isHtmlContent(content: string): boolean {
-  return /^\s*<(p|div|h[1-6]|ul|ol|table|blockquote|pre|hr|input)/i.test(content)
-}
-
 function markdownToTiptapHtml(md: string): string {
   if (!md) return ''
-  if (isHtmlContent(md)) return md
+  // Always run through marked. Per GFM/CommonMark, marked passes raw HTML blocks
+  // through untouched while parsing the surrounding Markdown — so this normalizes
+  // all three cases uniformly: pure HTML, pure Markdown, and HYBRID notes (an HTML
+  // head with raw Markdown appended later by the MCP `append_to_note` tool). The
+  // task-list post-processor below remains the guard against the Tiptap checkbox crash.
   const html = marked.parse(md, { async: false }) as string
   return html.replace(
     /<ul>([\s\S]*?)<\/ul>/gi,

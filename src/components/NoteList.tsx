@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { getDisplayTitle } from '../lib/noteTitleHelper';
+import { stripHtml, stripMarkdown } from '../lib/notePreview';
 
 const getBadgeColor = (tagName: string) => {
   const colors = ['badge-sky', 'badge-purple', 'badge-pink', 'badge-teal', 'badge-orange'];
@@ -25,12 +26,6 @@ const formatRelativeTime = (dateString: string) => {
   if (diffDays < 30) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
 
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
-const stripHtml = (html: string) => {
-  if (!html) return '';
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return doc.body.textContent || '';
 };
 
 export function NoteList({ notes, onSelectNote, onNewNote, activeTagFilter, onClearTagFilter, searchQuery }: any) {
@@ -119,7 +114,7 @@ export function NoteList({ notes, onSelectNote, onNewNote, activeTagFilter, onCl
                   </div>
                 )}
                 <div className="note-item-preview">
-                  {stripHtml(note.content) || 'Empty note…'}
+                  {stripMarkdown(stripHtml(note.content)) || 'Empty note…'}
                 </div>
               </div>
               <div className="note-item-time-container">

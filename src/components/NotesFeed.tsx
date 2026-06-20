@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { getDisplayTitle } from '../lib/noteTitleHelper';
 import { parseScoresFromContent } from '../lib/parseScore';
+import { getPreviewText } from '../lib/notePreview';
 import { ArrowRight } from 'lucide-react';
 
 interface NotesFeedProps {
@@ -11,18 +12,6 @@ interface NotesFeedProps {
   activeTagFilter: string | null;
   capsule: any;
 }
-
-const stripHtml = (html: string) => {
-  if (!html) return '';
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return doc.body.textContent || '';
-};
-
-const getFirstTextLine = (content: string) => {
-  const text = stripHtml(content);
-  const firstLine = text.split('\n').map(line => line.trim()).filter(line => line.length > 0 && !line.startsWith('#'))[0];
-  return firstLine || 'No preview...';
-};
 
 // Date helper to classify notes
 const classifyDateGroup = (dateStr: string) => {
@@ -131,7 +120,7 @@ export function NotesFeed({
                         <span className="feed-card-title">{getDisplayTitle(note)}</span>
                       </div>
                       
-                      <p className="feed-card-preview">{getFirstTextLine(note.content)}</p>
+                      <p className="feed-card-preview">{getPreviewText(note.content)}</p>
 
                       <div className="feed-card-meta">
                         {displayStatus && (
