@@ -74,7 +74,7 @@ export function CommandPalette({ notes, isOpen, onClose, onSelectNote }: any) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 1000 }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000 }}
             onClick={onClose}
           />
           <motion.div
@@ -90,15 +90,16 @@ export function CommandPalette({ notes, isOpen, onClose, onSelectNote }: any) {
               width: '90%',
               maxWidth: '600px',
               backgroundColor: 'var(--surface)',
+              border: '1px solid var(--hairline-strong)',
               borderRadius: 'var(--radius-lg)',
-              boxShadow: 'var(--shadow-sm)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
               zIndex: 1001,
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', padding: 'var(--spacing-md)', borderBottom: '1px solid var(--hairline)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', padding: 'var(--spacing-md)', borderBottom: '1px solid var(--hairline-strong)' }}>
               <Search aria-hidden="true" size={20} color="var(--ink-muted)" style={{ marginRight: '12px' }} />
               <input
                 autoFocus
@@ -158,14 +159,13 @@ export function CommandPalette({ notes, isOpen, onClose, onSelectNote }: any) {
                       textAlign: 'left',
                       border: 'none',
                       outline: 'none',
-                      backgroundColor: idx === selectedIndex ? 'var(--canvas-soft)' : 'transparent',
-                      boxShadow: idx === selectedIndex ? 'inset 3px 0 0 0 var(--primary), 0 0 8px rgba(124, 58, 237, 0.08)' : 'none',
-                      transition: 'background-color 0.15s ease, box-shadow 0.15s ease'
+                      backgroundColor: idx === selectedIndex ? 'var(--surface-raised)' : 'transparent',
+                      transition: 'background-color 0.15s ease'
                     }}
                     onMouseEnter={() => setSelectedIndex(idx)}
                   >
                     <FileText aria-hidden="true" size={16} color="var(--ink-muted)" style={{ marginRight: '12px', flexShrink: 0 }} />
-                    <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{getDisplayTitle(note)}</span>
+                    <span style={{ fontWeight: 500, color: idx === selectedIndex ? 'var(--ink)' : 'var(--ink-secondary)' }}>{getDisplayTitle(note)}</span>
                   </button>
                 ))
               )}

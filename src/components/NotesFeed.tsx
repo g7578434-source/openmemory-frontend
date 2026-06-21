@@ -2,8 +2,21 @@
 import { useMemo } from 'react';
 import { getDisplayTitle } from '../lib/noteTitleHelper';
 import { parseScoresFromContent } from '../lib/parseScore';
-import { getPreviewText } from '../lib/notePreview';
 import { ArrowRight } from 'lucide-react';
+
+const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
+  launched:  { color: 'var(--accent-emerald)', bg: 'var(--accent-emerald-bg)' },
+  validated: { color: 'var(--accent-emerald)', bg: 'var(--accent-emerald-bg)' },
+  building:  { color: 'var(--primary)',        bg: 'var(--primary-hover)' },
+  'raw-idea':{ color: 'var(--accent-amber)',   bg: 'var(--accent-amber-bg)' },
+  awaiting:  { color: 'var(--accent-cyan)',    bg: 'var(--accent-cyan-bg)' },
+  killed:    { color: 'var(--accent-rose)',    bg: 'var(--accent-rose-bg)' },
+  parked:    { color: 'var(--ink-muted)',      bg: 'var(--surface-raised)' },
+};
+
+const getStatusStyle = (status: string) => {
+  return STATUS_COLORS[status] || { color: 'var(--ink-muted)', bg: 'var(--surface-raised)' };
+};
 
 interface NotesFeedProps {
   notes: any[];
@@ -12,21 +25,6 @@ interface NotesFeedProps {
   activeTagFilter: string | null;
   capsule: any;
 }
-
-// Date helper to classify notes
-const classifyDateGroup = (dateStr: string) => {
-  if (!dateStr) return 'Older';
-  const noteDate = new Date(dateStr);
-  const today = new Date();
-  
-  const diffTime = Math.abs(today.getTime() - noteDate.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays <= 1) return 'Today';
-  if (diffDays <= 2) return 'Yesterday';
-  if (diffDays <= 7) return 'Last Week';
-  return 'Older';
-};
 
 export function NotesFeed({
   notes,
@@ -44,27 +42,6 @@ export function NotesFeed({
       return dateB - dateA;
     });
   }, [notes]);
-
-  // Group notes by date classification
-  const groupedNotes = useMemo(() => {
-    const groups: Record<string, any[]> = {
-      'Today': [],
-      'Yesterday': [],
-      'Last Week': [],
-      'Older': []
-    };
-
-    sortedNotes.forEach((note) => {
-      const group = classifyDateGroup(note.updated_at || note.created_at);
-      if (groups[group]) {
-        groups[group].push(note);
-      } else {
-        groups['Older'].push(note);
-      }
-    });
-
-    return groups;
-  }, [sortedNotes]);
 
   const latestAction = capsule?.next_actions?.[0] || 'Idle';
   const sessionNum = capsule?.session_number ?? '—';
@@ -92,50 +69,43 @@ export function NotesFeed({
             No notes found in this view.
           </div>
         ) : (
-          (['Today', 'Yesterday', 'Last Week', 'Older'] as const).map((groupName) => {
-            const groupNotes = groupedNotes[groupName] || [];
-            if (groupNotes.length === 0) return null;
+          sortedNotes.map((note) => {
+            const scores = parseScoresFromContent(note.content || '');
+            const scoreVal = scores.total;
+            
+            const displayStatus = note.status && note.status !== 'note' && note.status !== 'template' && note.status !== 'protocol' ? note.status : '';
+
+            const tag = note.note_tags?.[0]?.tags?.name || 's' + (note.title?.match(/Session\s*(\d+)/i)?.[1] || '—');
+
+            const isActive = activeNote && activeNote.id === note.id;
 
             return (
-              <div key={groupName}>
-                <div className="feed-date-group-header">{groupName}</div>
-                {groupNotes.map((note) => {
-                  const scores = parseScoresFromContent(note.content || '');
-                  const scoreVal = scores.total;
-                  
-                  const isKilled = note.status === 'killed';
-                  const displayStatus = note.status && note.status !== 'note' && note.status !== 'template' && note.status !== 'protocol' ? note.status : '';
+              <div
+                key={note.id}
+                onClick={() => onSelectNote(note)}
+                className={`feed-note-card ${isActive ? 'active' : ''}`}
+              >
+                <div className="feed-card-header">
+                  <span className="feed-card-title">{getDisplayTitle(note)}</span>
+                </div>
 
-                  const tag = note.note_tags?.[0]?.tags?.name || 's' + (note.title?.match(/Session\s*(\d+)/i)?.[1] || '—');
-
-                  const isActive = activeNote && activeNote.id === note.id;
-
-                  return (
-                    <div
-                      key={note.id}
-                      onClick={() => onSelectNote(note)}
-                      className={`feed-note-card ${isActive ? 'active' : ''}`}
-                    >
-                      <div className="feed-card-header">
-                        <span className="feed-card-title">{getDisplayTitle(note)}</span>
-                      </div>
-                      
-                      <p className="feed-card-preview">{getPreviewText(note.content)}</p>
-
-                      <div className="feed-card-meta">
-                        {displayStatus && (
-                          <span className="feed-pill-status" style={{ color: isKilled ? 'var(--status-killed)' : 'var(--primary)' }}>
-                            {displayStatus}
-                          </span>
-                        )}
-                        {scoreVal > 0 && (
-                          <span>sc: {scoreVal}</span>
-                        )}
-                        <span>#{tag}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                <div className="feed-card-meta">
+                  {displayStatus && (() => {
+                    const sc = getStatusStyle(note.status);
+                    return (
+                      <span
+                        className="feed-pill-status"
+                        style={{ color: sc.color, backgroundColor: sc.bg }}
+                      >
+                        {displayStatus}
+                      </span>
+                    );
+                  })()}
+                  {scoreVal > 0 && (
+                    <span>sc: {scoreVal}</span>
+                  )}
+                  <span style={{ color: 'var(--ink-faint)' }}>#{tag}</span>
+                </div>
               </div>
             );
           })
@@ -144,3 +114,4 @@ export function NotesFeed({
     </div>
   );
 }
+

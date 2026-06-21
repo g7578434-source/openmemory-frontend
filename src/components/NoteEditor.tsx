@@ -775,7 +775,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
         {showKeepModal && (
           <div className="modal-backdrop">
             <motion.div
-              className="modal-content glass-panel"
+              className="modal-content"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -798,7 +798,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
                     className="scoring-input"
-                    style={{ textAlign: 'left', marginTop: '6px', backgroundColor: 'var(--canvas)', height: '38px', padding: '0 12px' }}
+                    style={{ textAlign: 'left', marginTop: '6px', backgroundColor: 'var(--bg)', height: '36px', padding: '0 12px', border: '1px solid var(--hairline-strong)', borderRadius: 'var(--radius-md)' }}
                   />
                 </div>
               </div>
@@ -814,7 +814,6 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
                   onClick={handleKeepConfirm}
                   className="btn-primary"
                   disabled={actionLoading}
-                  style={{ backgroundColor: 'var(--primary)', color: 'var(--on-primary)', borderRadius: 'var(--radius-md)', padding: '6px 16px', fontSize: '13.5px' }}
                 >
                   {actionLoading ? 'Saving...' : 'Confirm Keep ✅'}
                 </button>
@@ -829,7 +828,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
         {showKillModal && (
           <div className="modal-backdrop">
             <motion.div
-              className="modal-content glass-panel"
+              className="modal-content"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -862,7 +861,7 @@ export function NoteEditor({ note, onNoteUpdated, onDeleteNote, capsule, onSaveC
                     onChange={(e) => setCompetitorsText(e.target.value)}
                     placeholder="e.g. https://competitor1.com, competitor2"
                     className="scoring-input"
-                    style={{ textAlign: 'left', marginTop: '6px', backgroundColor: 'var(--canvas)', height: '38px', padding: '0 12px' }}
+                    style={{ textAlign: 'left', marginTop: '6px', backgroundColor: 'var(--bg)', height: '36px', padding: '0 12px', border: '1px solid var(--hairline-strong)', borderRadius: 'var(--radius-md)' }}
                   />
                 </div>
               </div>

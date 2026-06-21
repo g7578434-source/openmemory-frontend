@@ -169,37 +169,34 @@ export function Sidebar({
 
   return (
     <div className={`sidebar-left ${isOpen ? 'open' : ''}`}>
-      {/* Brand logo & Profile section */}
-      <div style={{ padding: '8px var(--spacing-md) 16px var(--spacing-md)' }}>
+      {/* Brand logo */}
+      <div style={{ padding: '12px 16px 8px 16px' }}>
         <button 
           onClick={() => {
             onSelectTagFilter(null);
             onGoHome();
           }}
-          style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink)', background: 'none', border: 'none', cursor: 'pointer' }}
+          style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.03em', color: 'var(--ink)', background: 'none', border: 'none', cursor: 'pointer', outline: 'none' }}
         >
           OpenMemory
         </button>
-        <div style={{ fontSize: '11px', color: 'var(--ink-faint)', marginTop: '2px' }}>
-          {notes.length} notes
-        </div>
       </div>
 
       {/* Unified actions dock */}
-      <div style={{ padding: '0 var(--spacing-md) var(--spacing-md) var(--spacing-md)', display: 'flex', gap: '8px' }}>
+      <div style={{ padding: '0 12px 12px 12px', display: 'flex', gap: '6px' }}>
         <button
           onClick={onNewNote}
-          style={{ flex: 1, height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', cursor: 'pointer' }}
+          style={{ flex: 1, height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'var(--surface-raised)', border: '1px solid var(--hairline-strong)', borderRadius: 'var(--radius-sm)', fontSize: '12px', fontWeight: 500, color: 'var(--primary)', cursor: 'pointer' }}
         >
-          <Plus size={13} />
+          <Plus size={12} />
           <span>New note</span>
         </button>
         <button
           onClick={onSearchClick}
-          style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--ink-muted)', cursor: 'pointer' }}
+          style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-raised)', border: '1px solid var(--hairline-strong)', borderRadius: 'var(--radius-sm)', color: 'var(--ink-muted)', cursor: 'pointer' }}
           title="Search (⌘K)"
         >
-          <Search size={13} />
+          <Search size={12} />
         </button>
       </div>
 
@@ -211,11 +208,10 @@ export function Sidebar({
             onSelectTagFilter(null);
             onGoHome();
           }}
-          style={{ display: 'flex', alignItems: 'center', justifyItems: 'space-between', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', outline: 'none', color: (!activeNote && !activeTagFilter) ? 'var(--primary)' : 'var(--ink-secondary)', fontSize: '13px', padding: '6px 12px', borderRadius: 'var(--radius-sm)' }}
         >
-          <Inbox size={13} style={{ marginRight: '8px', opacity: 0.7 }} />
-          <span style={{ flex: 1, textAlign: 'left' }}>Inbox</span>
-          <span style={{ fontSize: '10px', opacity: 0.5 }}>{notes.filter(n => n.status !== 'killed').length}</span>
+          <Inbox size={12} style={{ marginRight: '8px', opacity: 0.7 }} />
+          <span>Inbox</span>
+          <span className="folder-count">{notes.filter(n => n.status !== 'killed').length}</span>
         </button>
       </div>
 
@@ -227,9 +223,9 @@ export function Sidebar({
             {isEditingSidebar && (
               <button 
                 onClick={addSection}
-                style={{ fontSize: '11px', color: 'var(--primary)', cursor: 'pointer', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: 'var(--folder-count-bg)', fontWeight: 600 }}
+                style={{ fontSize: '11px', color: 'var(--primary)', cursor: 'pointer', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: 'var(--folder-count-bg)', fontWeight: 550 }}
               >
-                + New Group
+                + Group
               </button>
             )}
             <button 
@@ -237,7 +233,7 @@ export function Sidebar({
               style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--primary)', cursor: 'pointer', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--folder-count-bg)' }}
               title={isEditingSidebar ? 'Save Changes' : 'Customize Folders'}
             >
-              {isEditingSidebar ? <Check size={11} /> : <Edit2 size={11} />}
+              {isEditingSidebar ? <Check size={10} /> : <Edit2 size={10} />}
               <span>{isEditingSidebar ? 'Done' : 'Edit'}</span>
             </button>
           </div>
@@ -246,19 +242,19 @@ export function Sidebar({
         {isEditingSidebar ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {sections.map(({ section, tags }: any, sectionIdx: number) => (
-              <div key={sectionIdx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px', border: '1px dashed var(--hairline)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--canvas-soft)' }}>
+              <div key={sectionIdx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px', border: '1px dashed var(--hairline-strong)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--surface-raised)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
                   <input 
                     type="text" 
                     value={section} 
                     onChange={(e) => renameSection(sectionIdx, e.target.value)}
-                    style={{ fontSize: '10px', fontWeight: 650, width: '110px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', color: 'var(--folder-section-label)', textTransform: 'uppercase', outline: 'none' }}
+                    style={{ fontSize: '10px', fontWeight: 600, width: '100px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', color: 'var(--folder-section-label)', textTransform: 'uppercase', outline: 'none' }}
                   />
                   <div style={{ display: 'flex', gap: '2px' }}>
                     <button onClick={() => moveSectionUp(sectionIdx)} title="Move Section Up" style={{ padding: '2px', cursor: 'pointer', fontSize: '10px' }}>▲</button>
                     <button onClick={() => moveSectionDown(sectionIdx)} title="Move Section Down" style={{ padding: '2px', cursor: 'pointer', fontSize: '10px' }}>▼</button>
                     <button onClick={() => addTagToSection(sectionIdx)} title="Add Folder (Tag)" style={{ padding: '2px', cursor: 'pointer', color: 'var(--primary)', fontSize: '12px', fontWeight: 'bold' }}>+</button>
-                    <button onClick={() => deleteSection(sectionIdx)} title="Delete Section" style={{ padding: '2px', cursor: 'pointer', color: 'var(--sticker-pink-text)', fontSize: '12px' }}>×</button>
+                    <button onClick={() => deleteSection(sectionIdx)} title="Delete Section" style={{ padding: '2px', cursor: 'pointer', color: 'var(--status-killed)', fontSize: '12px' }}>×</button>
                   </div>
                 </div>
 
@@ -281,7 +277,7 @@ export function Sidebar({
                         </select>
                         <button onClick={() => moveTagUp(sectionIdx, tagIdx)} title="Move Up" style={{ fontSize: '9px', cursor: 'pointer', padding: '2px' }}>▲</button>
                         <button onClick={() => moveTagDown(sectionIdx, tagIdx)} title="Move Down" style={{ fontSize: '9px', cursor: 'pointer', padding: '2px' }}>▼</button>
-                        <button onClick={() => removeTagFromSection(sectionIdx, tagIdx)} title="Remove Folder" style={{ fontSize: '11px', cursor: 'pointer', color: 'var(--sticker-pink-text)', padding: '2px' }}>×</button>
+                        <button onClick={() => removeTagFromSection(sectionIdx, tagIdx)} title="Remove Folder" style={{ fontSize: '11px', cursor: 'pointer', color: 'var(--status-killed)', padding: '2px' }}>×</button>
                       </div>
                     </div>
                   ))}
@@ -294,8 +290,8 @@ export function Sidebar({
 
             {/* Unsorted tags drawer in Edit Mode */}
             {otherTags.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px', border: '1px dashed var(--hairline)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--canvas-soft)', opacity: 0.85 }}>
-                <span className="sidebar-section-header" style={{ padding: 0, fontSize: '10px', fontWeight: 650, color: 'var(--folder-section-label)' }}>UNSORTED</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px', border: '1px dashed var(--hairline-strong)', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--surface-raised)', opacity: 0.85 }}>
+                <span className="sidebar-section-header" style={{ padding: 0, fontSize: '10px', fontWeight: 600, color: 'var(--folder-section-label)' }}>UNSORTED</span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '8px' }}>
                   {otherTags.map((tagName: string) => (
                     <div key={tagName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0', gap: '4px' }}>
@@ -343,18 +339,15 @@ export function Sidebar({
                           onGoHome();
                         }}
                         className={`sidebar-folder-row ${isActive ? 'active' : ''}`}
-                        style={{ display: 'flex', alignItems: 'center', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: isActive ? 'var(--primary)' : 'var(--ink-secondary)', fontSize: '13px', padding: '5px 12px', borderRadius: 'var(--radius-sm)' }}
                       >
                         <Layers size={11} style={{ marginRight: '8px', opacity: 0.5 }} />
-                        <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {formatFolderName(tagName)}
-                        </span>
-                        {count > 0 && <span style={{ fontSize: '10px', opacity: 0.5 }}>{count}</span>}
+                        <span>{formatFolderName(tagName)}</span>
+                        {count > 0 && <span className="folder-count">{count}</span>}
                       </button>
                     );
                   })}
                   {tags.length === 0 && (
-                    <span style={{ fontSize: '11px', color: 'var(--ink-faint)', fontStyle: 'italic', padding: '4px 12px' }}>Empty group</span>
+                    <span style={{ fontSize: '11px', color: 'var(--ink-faint)', fontStyle: 'italic', padding: '4px 16px' }}>Empty group</span>
                   )}
                 </div>
               );
@@ -377,13 +370,10 @@ export function Sidebar({
                     onGoHome();
                   }}
                   className={`sidebar-folder-row ${isActive ? 'active' : ''}`}
-                  style={{ display: 'flex', alignItems: 'center', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: isActive ? 'var(--primary)' : 'var(--ink-secondary)', fontSize: '13px', padding: '5px 12px', borderRadius: 'var(--radius-sm)' }}
                 >
                   <Layers size={11} style={{ marginRight: '8px', opacity: 0.5 }} />
-                  <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {formatFolderName(tagName)}
-                  </span>
-                  {count > 0 && <span style={{ fontSize: '10px', opacity: 0.5 }}>{count}</span>}
+                  <span>{formatFolderName(tagName)}</span>
+                  {count > 0 && <span className="folder-count">{count}</span>}
                 </button>
               );
             })}
@@ -392,21 +382,21 @@ export function Sidebar({
       </div>
 
       {/* Footer Settings & Theme Toggle */}
-      <div style={{ borderTop: '1px solid var(--border)', padding: '12px var(--spacing-sm) 0 var(--spacing-sm)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <div style={{ borderTop: '1px solid var(--border)', padding: '12px 12px 0 12px', display: 'flex', gap: '6px', alignItems: 'center' }}>
         <button
           onClick={() => alert("Settings panel coming soon!")}
-          style={{ flex: 1, height: '32px', display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', color: 'var(--ink-muted)', paddingLeft: '8px', fontSize: '12px', cursor: 'pointer' }}
+          style={{ flex: 1, height: '28px', display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', color: 'var(--ink-muted)', paddingLeft: '8px', fontSize: '12px', cursor: 'pointer' }}
         >
-          <Settings size={13} />
+          <Settings size={12} />
           <span>Settings</span>
         </button>
 
         <button
           onClick={onToggleTheme}
-          style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--ink-muted)', cursor: 'pointer' }}
+          style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--ink-muted)', cursor: 'pointer' }}
           title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
         >
-          {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+          {theme === 'dark' ? <Sun size={12} /> : <Moon size={12} />}
         </button>
       </div>
     </div>

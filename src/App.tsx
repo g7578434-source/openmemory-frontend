@@ -25,7 +25,7 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved;
-    return 'light'; // Default to premium light mode
+    return 'dark'; // Default to Linear-inspired dark mode
   });
 
   // Apply theme to document element
@@ -417,7 +417,7 @@ function App() {
         {currentActiveNote ? (
           <div className="split-editor-column">
             {/* Header tab bar inside editor */}
-            <div className="editor-tabs-bar" style={{ borderBottom: '1px solid var(--border)', paddingRight: '8px' }}>
+            <div className="editor-tabs-bar">
               <button
                 className="editor-back-btn"
                 onClick={() => setActiveTab('home')}
@@ -450,7 +450,7 @@ function App() {
               
               <button
                 className="editor-tab"
-                style={{ border: 'none', background: 'transparent', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ border: 'none', padding: '0 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 onClick={() => setActiveTab('home')}
                 title="Close Editor"
               >
@@ -472,8 +472,8 @@ function App() {
         ) : (
           /* Empty state when no note is open */
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-faint)', padding: '32px' }}>
-            <span style={{ fontSize: '13px', fontFamily: 'IBM Plex Mono, monospace' }}>No document selected</span>
-            <span style={{ fontSize: '11px', marginTop: '6px' }}>Select a note from the feed or press N to compose.</span>
+            <span style={{ fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: '0.05em', textTransform: 'uppercase' }}>No document selected</span>
+            <span style={{ fontSize: '12px', marginTop: '6px', color: 'var(--ink-muted)' }}>Select a note from the feed or press <kbd style={{ padding: '2px 4px', background: 'var(--surface-raised)', border: '1px solid var(--hairline-strong)', borderRadius: 'var(--radius-xs)', fontSize: '10px' }}>N</kbd> to compose.</span>
           </div>
         )}
       </div>
