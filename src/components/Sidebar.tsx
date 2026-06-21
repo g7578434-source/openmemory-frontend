@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Settings, Plus, Sun, Moon, Inbox, Layers, Edit2, Check } from 'lucide-react';
+import { Search, Settings, Plus, Sun, Moon, Inbox, Layers, Edit2, Check, ChevronRight, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 function formatFolderName(tag: string): string {
@@ -42,6 +42,7 @@ export function Sidebar({
 }: SidebarProps) {
   const [folders, setFolders] = useState<any[]>([]);
   const [isEditingSidebar, setIsEditingSidebar] = useState(false);
+  const [isOtherCollapsed, setIsOtherCollapsed] = useState(true);
 
   useEffect(() => {
     async function loadFolders() {
@@ -357,8 +358,16 @@ export function Sidebar({
 
         {otherTags.length > 0 && !isEditingSidebar && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <span className="sidebar-section-header">OTHER</span>
-            {otherTags.map(tagName => {
+            <div 
+              onClick={() => setIsOtherCollapsed(!isOtherCollapsed)}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', userSelect: 'none' }}
+              className="sidebar-section-header"
+            >
+              {isOtherCollapsed ? <ChevronRight size={12} style={{ opacity: 0.5 }} /> : <ChevronDown size={12} style={{ opacity: 0.5 }} />}
+              <span style={{ padding: 0 }}>OTHER</span>
+            </div>
+            
+            {!isOtherCollapsed && otherTags.map(tagName => {
               const count = tagMap.get(tagName) ?? 0;
               const isActive = activeTagFilter === tagName;
 

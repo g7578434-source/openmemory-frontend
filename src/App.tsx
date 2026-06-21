@@ -6,22 +6,25 @@ import { Sidebar } from './components/Sidebar';
 import { NotesFeed } from './components/NotesFeed';
 import { NoteEditor } from './components/NoteEditor';
 import { CommandPalette } from './components/CommandPalette';
+import { Dashboard } from './components/Dashboard';
 import { supabase } from './lib/supabase';
 import { X, Menu, Search, ArrowLeft } from 'lucide-react';
 import { getDisplayTitle } from './lib/noteTitleHelper';
-import { getSidebarSections, saveSidebarSections, DEFAULT_FOLDER_GROUPS } from './lib/userPreferences';
+import { getSidebarSections, saveSidebarSections, DEFAULT_FOLDER_GROUPS, getDashboardPreferences, saveDashboardPreferences, DEFAULT_DASHBOARD_PREFERENCES } from './lib/userPreferences';
 
 function App() {
   const [notes, setNotes] = useState<any[]>([]);
   const [openNotes, setOpenNotes] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<string>('home'); // 'home' or uuid string
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
+  const [activeStatusFilter, setActiveStatusFilter] = useState<string | null>(null);
   const [searchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [capsule, setCapsule] = useState<any | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarSections, setSidebarSections] = useState<any[]>(DEFAULT_FOLDER_GROUPS);
+  const [dashboardPrefs, setDashboardPrefs] = useState<any>(DEFAULT_DASHBOARD_PREFERENCES);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved;
@@ -256,6 +259,12 @@ function App() {
       setSidebarSections(sections);
     }
     loadSidebarPrefs();
+
+    async function loadDashboardPrefs() {
+      const prefs = await getDashboardPreferences();
+      setDashboardPrefs(prefs);
+    }
+    loadDashboardPrefs();
   }, []);
 
   const handleSaveSidebarSections = async (newSections: any[]) => {
@@ -264,9 +273,12 @@ function App() {
   };
 
   const handleSelectNote = (note: any) => {
-    if (!openNotes.some(n => n.id === note.id)) {
-      setOpenNotes([...openNotes, note]);
-    }
+    setOpenNotes(prev => {
+      if (!prev.some(n => n.id === note.id)) {
+        return [...prev, note];
+      }
+      return prev;
+    });
     setActiveTab(note.id);
     setIsSidebarOpen(false);
   };
@@ -348,6 +360,17 @@ function App() {
       });
       if (!hasTag) return false;
     }
+    if (activeStatusFilter) {
+      if (activeStatusFilter.startsWith('#')) {
+        const tagName = activeStatusFilter.slice(1);
+        const hasCustomTag = note.note_tags?.some((nt: any) => {
+          return nt.tags?.name === tagName;
+        });
+        if (!hasCustomTag) return false;
+      } else {
+        if (note.status !== activeStatusFilter) return false;
+      }
+    }
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const titleMatch = note.title?.toLowerCase().includes(query);
@@ -404,13 +427,17 @@ function App() {
             <span>Loading workspace...</span>
           </div>
         ) : (
-          <NotesFeed
-            notes={filteredNotes}
-            activeNote={currentActiveNote}
-            onSelectNote={handleSelectNote}
-            activeTagFilter={activeTagFilter}
-            capsule={capsule}
-          />
+          <>
+            <div className="notes-feed-hover-zone" />
+            <NotesFeed
+              notes={filteredNotes}
+              activeNote={currentActiveNote}
+              onSelectNote={handleSelectNote}
+              activeTagFilter={activeTagFilter}
+              activeStatusFilter={activeStatusFilter}
+              capsule={capsule}
+            />
+          </>
         )}
 
         {/* Right Column: Note Editor in Split View */}
@@ -470,11 +497,21 @@ function App() {
             </div>
           </div>
         ) : (
-          /* Empty state when no note is open */
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-faint)', padding: '32px' }}>
-            <span style={{ fontSize: '12px', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: '0.05em', textTransform: 'uppercase' }}>No document selected</span>
-            <span style={{ fontSize: '12px', marginTop: '6px', color: 'var(--ink-muted)' }}>Select a note from the feed or press <kbd style={{ padding: '2px 4px', background: 'var(--surface-raised)', border: '1px solid var(--hairline-strong)', borderRadius: 'var(--radius-xs)', fontSize: '10px' }}>N</kbd> to compose.</span>
-          </div>
+          <Dashboard 
+            notes={notes} 
+            capsule={capsule} 
+            onSelectNote={handleSelectNote} 
+            activeStatusFilter={activeStatusFilter}
+            onSelectStatusFilter={(status) => {
+              setActiveStatusFilter(prev => prev === status ? null : status);
+              setActiveTagFilter(null);
+            }}
+            dashboardPrefs={dashboardPrefs}
+            onSaveDashboardPrefs={async (newPrefs: any) => {
+              setDashboardPrefs(newPrefs);
+              await saveDashboardPreferences(newPrefs);
+            }}
+          />
         )}
       </div>
 

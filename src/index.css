@@ -288,6 +288,19 @@ button {
   height: 100%;
 }
 
+@media (max-width: 1024px) {
+  .sidebar-left {
+    width: 220px;
+    background-color: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-md) 0;
+    flex-shrink: 0;
+    height: 100%;
+  }
+}
+
 /* Brand header — subtle gradient underline */
 .sidebar-left > div:first-child {
   border-bottom: 1px solid var(--hairline);
@@ -345,6 +358,7 @@ button {
 }
 
 .sidebar-folder-row .folder-count {
+  flex: 0 0 auto;
   font-size: 10.5px;
   font-family: 'IBM Plex Mono', monospace;
   color: var(--folder-count-text);
@@ -359,6 +373,10 @@ button {
    FEED COLUMN (FLAT Dense List)
    ========================================================================== */
 
+.notes-feed-hover-zone {
+  display: none;
+}
+
 .notes-feed-column {
   width: 320px;
   border-right: 1px solid var(--border);
@@ -367,6 +385,37 @@ button {
   height: 100%;
   background-color: var(--surface-raised);
   flex-shrink: 0;
+  transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+@media (min-width: 1025px) {
+  /* Only enable auto-hide when a note is active */
+  .center-pane.has-active-note .notes-feed-hover-zone {
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 20px;
+    z-index: 45;
+  }
+
+  .center-pane.has-active-note .notes-feed-column {
+    margin-left: -320px; /* Hide off-screen by negative margin */
+  }
+
+  .center-pane.has-active-note .notes-feed-hover-zone:hover + .notes-feed-column,
+  .center-pane.has-active-note .notes-feed-column:hover,
+  .center-pane.has-active-note .notes-feed-column:focus-within {
+    margin-left: 0; /* Slide back in and push the note */
+    box-shadow: 4px 0 24px rgba(0,0,0,0.05);
+  }
+}
+
+@media (max-width: 1024px) {
+  .notes-feed-column {
+    width: 320px;
+  }
 }
 
 .feed-header {
@@ -1377,5 +1426,17 @@ button {
 
   .editor-back-btn {
     display: flex;
+  }
+
+  .dashboard-container {
+    padding: 24px 16px !important;
+  }
+
+  .metric-card-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
   }
 }

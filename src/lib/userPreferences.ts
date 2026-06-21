@@ -79,3 +79,67 @@ export async function saveSidebarSections(sections: any[]): Promise<boolean> {
     return false;
   }
 }
+
+export const DEFAULT_DASHBOARD_PREFERENCES = {
+  visibleMetrics: ['launched', 'validated', 'awaiting-test', 'raw-idea', 'killed'],
+  showActiveContext: true,
+  showRecentActivity: true,
+  customMetrics: [],
+  customSections: []
+};
+
+export async function getDashboardPreferences(): Promise<any> {
+  const fallback = localStorage.getItem('dashboard_preferences');
+  let localData: any = null;
+  if (fallback) {
+    try {
+      localData = JSON.parse(fallback);
+    } catch (e) {}
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('value')
+      .eq('key', 'dashboard_preferences')
+      .maybeSingle();
+
+    if (error) {
+      return localData || DEFAULT_DASHBOARD_PREFERENCES;
+    }
+
+    if (data && data.value) {
+      try {
+        localStorage.setItem('dashboard_preferences', JSON.stringify(data.value));
+      } catch {}
+      return { ...DEFAULT_DASHBOARD_PREFERENCES, ...data.value }; // Merge with defaults
+    }
+  } catch (err) {}
+  
+  return localData || DEFAULT_DASHBOARD_PREFERENCES;
+}
+
+export async function saveDashboardPreferences(prefs: any): Promise<boolean> {
+  try {
+    localStorage.setItem('dashboard_preferences', JSON.stringify(prefs));
+  } catch (err) {}
+
+  try {
+    const { error } = await supabase
+      .from('user_preferences')
+      .upsert(
+        {
+          key: 'dashboard_preferences',
+          value: prefs,
+        },
+        { onConflict: 'key' }
+      );
+
+    if (error) {
+      return false;
+    }
+    return true;
+  } catch (err) {
+    return false;
+  }
+}

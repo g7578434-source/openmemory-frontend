@@ -23,6 +23,7 @@ interface NotesFeedProps {
   activeNote: any;
   onSelectNote: (note: any) => void;
   activeTagFilter: string | null;
+  activeStatusFilter?: string | null;
   capsule: any;
 }
 
@@ -31,6 +32,7 @@ export function NotesFeed({
   activeNote,
   onSelectNote,
   activeTagFilter,
+  activeStatusFilter,
   capsule
 }: NotesFeedProps) {
 
@@ -59,7 +61,11 @@ export function NotesFeed({
 
       <div className="feed-header">
         <span className="feed-title">
-          {activeTagFilter ? activeTagFilter.replace('-', ' ') : 'Inbox'}
+          {activeStatusFilter 
+            ? `Status: ${activeStatusFilter.replace('-', ' ')}` 
+            : activeTagFilter 
+              ? activeTagFilter.replace('-', ' ') 
+              : 'Inbox'}
         </span>
       </div>
 
