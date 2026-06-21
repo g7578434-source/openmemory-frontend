@@ -98,25 +98,26 @@
 }
 
 [data-theme='light'] {
-  --bg: #FAF9F6;              /* Warm cream-white canvas */
-  --surface: #F3F2EE;         /* Soft warm-gray panel surface */
-  --surface-raised: #EAE9E4;  /* Accentuated warm-gray borders/hovers */
-  --surface-3: #E1E0DA;
-  --surface-4: #D8D7D0;
+  --bg: #F5EFE3;              /* Warm sepia-white parchment (Editor) */
+  --surface: #DFD8C9;         /* Deepest sandstone sepia (Sidebar) */
+  --surface-raised: #EBE5D8;  /* Medium warm sepia (Feed Column) */
+  --surface-3: #D2CABD;
+  --surface-4: #C6BDB0;
 
-  --hairline: #E2DFD8;
-  --hairline-strong: #CDCAC2;
-  --hairline-tertiary: #AFAAA0;
+  --hairline: #E2DCD0;
+  --hairline-strong: #CDC6BA;
+  --hairline-tertiary: #AFA89D;
   --border: var(--hairline);
 
-  --ink: #1C1B1A;             /* Very deep charcoal-brown instead of pure black */
-  --ink-secondary: #2C2A29;   /* Muted warm dark-charcoal for high readability */
-  --ink-muted: #6B6864;
-  --ink-faint: #96928C;
+  --ink: #2C251E;             /* Espresso brown for high contrast titles */
+  --ink-secondary: #453C35;   /* Soft espresso charcoal for body text */
+  --ink-muted: #7E7468;
+  --ink-faint: #A3998D;
 
   --primary: #5e6ad2; /* Consistent lavender accent */
   --primary-hover-color: #4c57b0;
   --primary-active: #3d4699;
+  --primary-text: #4752c4;
   --primary-hover: rgba(94, 106, 210, 0.06);
   --primary-selected: rgba(94, 106, 210, 0.1);
   --on-primary: #ffffff;
@@ -126,27 +127,27 @@
   --folder-count-bg: #eef0f1;
 
   /* Muted light theme badges */
-  --badge-sky: rgba(2, 132, 199, 0.08);
-  --badge-sky-text: #0284c7;
-  --badge-purple: rgba(147, 51, 234, 0.08);
-  --badge-purple-text: #9333ea;
-  --badge-pink: rgba(219, 39, 119, 0.08);
-  --badge-pink-text: #db2777;
-  --badge-teal: rgba(13, 148, 136, 0.08);
-  --badge-teal-text: #0d9488;
-  --badge-orange: rgba(217, 119, 6, 0.08);
-  --badge-orange-text: #d97706;
+  --badge-sky: rgba(2, 132, 199, 0.15);
+  --badge-sky-text: #0369a1;
+  --badge-purple: rgba(147, 51, 234, 0.15);
+  --badge-purple-text: #7e22ce;
+  --badge-pink: rgba(219, 39, 119, 0.15);
+  --badge-pink-text: #be184d;
+  --badge-teal: rgba(13, 148, 136, 0.15);
+  --badge-teal-text: #0f766e;
+  --badge-orange: rgba(217, 119, 6, 0.15);
+  --badge-orange-text: #b45309;
 
-  --accent-emerald: #059669;
-  --accent-emerald-bg: rgba(5, 150, 105, 0.08);
-  --accent-amber: #d97706;
-  --accent-amber-bg: rgba(217, 119, 6, 0.08);
-  --accent-rose: #e11d48;
-  --accent-rose-bg: rgba(225, 29, 72, 0.08);
-  --accent-violet: #7c3aed;
-  --accent-violet-bg: rgba(124, 58, 237, 0.08);
-  --accent-cyan: #0891b2;
-  --accent-cyan-bg: rgba(8, 145, 178, 0.08);
+  --accent-emerald: #065f46;
+  --accent-emerald-bg: rgba(5, 150, 105, 0.15);
+  --accent-amber: #92400e;
+  --accent-amber-bg: rgba(217, 119, 6, 0.15);
+  --accent-rose: #9f1239;
+  --accent-rose-bg: rgba(225, 29, 72, 0.15);
+  --accent-violet: #5b21b6;
+  --accent-violet-bg: rgba(124, 58, 237, 0.15);
+  --accent-cyan: #155e75;
+  --accent-cyan-bg: rgba(8, 145, 178, 0.15);
 
   --glow-gradient: linear-gradient(135deg, rgba(94, 106, 210, 0.08), rgba(124, 58, 237, 0.04));
 }
@@ -172,6 +173,7 @@
   --primary: #5e6ad2;
   --primary-hover-color: #828fff;
   --primary-active: #5e69d1;
+  --primary-text: #828fff;
   --primary-hover: rgba(94, 106, 210, 0.08);
   --primary-selected: rgba(94, 106, 210, 0.12);
   --on-primary: #ffffff;
@@ -363,7 +365,7 @@ button {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--bg);
+  background-color: var(--surface-raised);
   flex-shrink: 0;
 }
 
@@ -1065,7 +1067,7 @@ button {
   font-family: 'IBM Plex Mono', monospace;
   margin-right: 6px;
   margin-bottom: 6px;
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .badge-sky { background-color: var(--badge-sky); color: var(--badge-sky-text); }

@@ -7,7 +7,7 @@ import { ArrowRight } from 'lucide-react';
 const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
   launched:  { color: 'var(--accent-emerald)', bg: 'var(--accent-emerald-bg)' },
   validated: { color: 'var(--accent-emerald)', bg: 'var(--accent-emerald-bg)' },
-  building:  { color: 'var(--primary)',        bg: 'var(--primary-hover)' },
+  building:  { color: 'var(--primary-text)', bg: 'var(--primary-hover)' },
   'raw-idea':{ color: 'var(--accent-amber)',   bg: 'var(--accent-amber-bg)' },
   awaiting:  { color: 'var(--accent-cyan)',    bg: 'var(--accent-cyan-bg)' },
   killed:    { color: 'var(--accent-rose)',    bg: 'var(--accent-rose-bg)' },
@@ -104,7 +104,7 @@ export function NotesFeed({
                   {scoreVal > 0 && (
                     <span>sc: {scoreVal}</span>
                   )}
-                  <span style={{ color: 'var(--ink-faint)' }}>#{tag}</span>
+                  <span style={{ color: 'var(--primary-text)', fontWeight: 700 }}>#{tag}</span>
                 </div>
               </div>
             );
